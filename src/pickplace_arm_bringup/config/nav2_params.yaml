@@ -1,8 +1,8 @@
 # Nav2 parameters for the pickplace_arm 4-wheel skid-steer mobile base.
-# Robot footprint approximated as a 0.25 m radius circle (covers the
-# 0.38x0.26 m chassis plus the wheels that protrude past it). Uses the
-# RegulatedPurePursuitController, which is robust for differential/skid-steer
-# drives. SLAM (slam_toolbox) supplies map -> odom, so AMCL is not used.
+# MPPI controller (DiffDrive motion model) with the Smac 2D global planner.
+# Footprint is the chassis rectangle: bumper +0.494, tail -0.496, half-width 0.335.
+# SLAM supplies map -> odom for the single-robot launches; the hospital fleet
+# runs AMCL instead (config/amcl_hospital.yaml).
 
 bt_navigator:
   ros__parameters:
@@ -82,55 +82,107 @@ controller_server:
 
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
-      movement_time_allowance: 10.0
+      required_movement_radius: 0.10
+      movement_time_allowance: 20.0
 
     general_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
       stateful: true
-      xy_goal_tolerance: 0.20
-      # Loose heading tolerance: the robot doesn't need to nail an exact final
-      # yaw (the visual servo re-centres on the box, and delivery/parking don't
-      # care which way it faces). A tight yaw made the skid-steer oscillate in
-      # place around the goal heading, which tripped Nav2's recovery Spin.
+      xy_goal_tolerance: 0.35
       yaw_goal_tolerance: 0.5
 
     FollowPath:
-      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      desired_linear_vel: 0.55
-      lookahead_dist: 0.5
-      min_lookahead_dist: 0.3
-      max_lookahead_dist: 0.8
-      lookahead_time: 1.5
-      rotate_to_heading_angular_vel: 1.6
+      plugin: "nav2_mppi_controller::MPPIController"
+      time_steps: 30
+      model_dt: 0.05
+      batch_size: 600
+      iteration_count: 1
+      motion_model: "DiffDrive"
+      vx_std: 0.25
+      vy_std: 0.0
+      wz_std: 0.4
+      vx_max: 0.90
+      vx_min: -0.45
+      vy_max: 0.0
+      wz_max: 2.2
+      prune_distance: 2.8
       transform_tolerance: 0.2
-      use_velocity_scaled_lookahead_dist: false
-      min_approach_linear_velocity: 0.05
-      approach_velocity_scaling_dist: 0.6
-      use_collision_detection: true
-      max_allowed_time_to_collision_up_to_carrot: 1.0
-      use_regulated_linear_velocity_scaling: true
-      use_cost_regulated_linear_velocity_scaling: false
-      regulated_linear_scaling_min_radius: 0.9
-      regulated_linear_scaling_min_speed: 0.25
-      use_rotate_to_heading: true
-      rotate_to_heading_min_angle: 0.785
-      max_angular_accel: 3.5
-      max_robot_pose_search_dist: 10.0
+      temperature: 0.15
+      gamma: 0.005
+      regenerate_noises: false
+      visualize: false
+      TrajectoryVisualizer:
+        trajectory_step: 5
+        time_step: 3
+      AckermannConstraints:
+        min_turning_r: 0.0
+      critics: ["ConstraintCritic", "CostCritic", "GoalCritic", "GoalAngleCritic",
+                "PathAlignCritic", "PathFollowCritic", "PathAngleCritic",
+                "PreferForwardCritic"]
+      ConstraintCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 4.0
+      CostCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.81
+        critical_cost: 300.0
+        consider_footprint: true #false
+        collision_cost: 1000000.0
+        near_goal_distance: 1.0
+      GoalCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        threshold_to_consider: 1.4
+      GoalAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.0
+        threshold_to_consider: 0.5
+      PathAlignCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 14.0
+        max_path_occupancy_ratio: 0.05
+        trajectory_point_step: 4
+        threshold_to_consider: 0.5
+        offset_from_furthest: 20
+        use_path_orientations: false
+      PathFollowCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        offset_from_furthest: 10
+        threshold_to_consider: 1.4
+      PathAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 2.0
+        offset_from_furthest: 4
+        threshold_to_consider: 0.5
+        max_angle_to_furthest: 1.0
+        forward_preference: true
+      PreferForwardCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        threshold_to_consider: 0.5
 
 local_costmap:
   local_costmap:
     ros__parameters:
       use_sim_time: true
-      update_frequency: 5.0
+      update_frequency: 15.0
       publish_frequency: 2.0
       global_frame: odom
       robot_base_frame: base_link
       rolling_window: true
-      width: 4
-      height: 4
+      width: 6
+      height: 6
       resolution: 0.05
-      robot_radius: 0.25
+      footprint: "[[0.494, -0.335], [0.494, 0.335], [-0.496, 0.335], [-0.496, -0.335]]"
       plugins: ["obstacle_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
@@ -149,7 +201,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.30
+        inflation_radius: 0.75
       always_send_full_costmap: true
 
 global_costmap:
@@ -160,7 +212,7 @@ global_costmap:
       publish_frequency: 1.0
       global_frame: map
       robot_base_frame: base_link
-      robot_radius: 0.25
+      footprint: "[[0.494, -0.335], [0.494, 0.335], [-0.496, 0.335], [-0.496, -0.335]]"
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
@@ -184,19 +236,30 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.30
+        inflation_radius: 0.75
       always_send_full_costmap: true
 
 planner_server:
   ros__parameters:
     use_sim_time: true
-    expected_planner_frequency: 20.0
+    expected_planner_frequency: 5.0
     planner_plugins: ["GridBased"]
     GridBased:
-      plugin: "nav2_navfn_planner/NavfnPlanner"
+      plugin: "nav2_smac_planner/SmacPlanner2D"
       tolerance: 0.5
-      use_astar: false
       allow_unknown: true
+      downsample_costmap: false
+      downsampling_factor: 1
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 2.0
+      cost_travel_multiplier: 2.0
+      use_final_approach_orientation: false
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.3
+        w_data: 0.2
+        tolerance: 1.0e-10
 
 smoother_server:
   ros__parameters:
@@ -236,16 +299,19 @@ behavior_server:
     min_rotational_vel: 0.4
     rotational_acc_lim: 3.2
 
+# Not loaded by anything: no velocity_smoother node runs (see NAV_NODES in
+# hospital_fleet.launch.py). Kept matched to FollowPath's vx_max/wz_max and
+# diff_drive_controller's limits so adding the node later clips nothing.
 velocity_smoother:
   ros__parameters:
     use_sim_time: true
     smoothing_frequency: 20.0
     scale_velocities: false
     feedback: "OPEN_LOOP"
-    max_velocity: [0.7, 0.0, 2.2]
-    min_velocity: [-0.7, 0.0, -2.2]
-    max_accel: [1.5, 0.0, 3.5]
-    max_decel: [-1.5, 0.0, -3.5]
+    max_velocity: [0.9, 0.0, 2.4]
+    min_velocity: [-0.9, 0.0, -2.4]
+    max_accel: [2.5, 0.0, 6.0]
+    max_decel: [-2.5, 0.0, -6.0]
     odom_topic: "/diff_drive_controller/odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]

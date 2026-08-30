@@ -1,9 +1,10 @@
 import os
+import re
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
-    AppendEnvironmentVariable, IncludeLaunchDescription, RegisterEventHandler,
-    SetEnvironmentVariable,
+    AppendEnvironmentVariable, ExecuteProcess, IncludeLaunchDescription,
+    RegisterEventHandler, SetEnvironmentVariable,
 )
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -15,39 +16,21 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
     pkg_description = get_package_share_directory('pickplace_arm_description')
 
-    # Gazebo resolves package://<pkg>/... mesh URIs (as robot_state_publisher
-    # emits them) by rewriting the scheme to model://<pkg>/... and searching
-    # GZ_SIM_RESOURCE_PATH for a <dir>/<pkg>/... match, so the share dir's
-    # PARENT is what goes on the path (get_package_share_directory already
-    # returns .../share/<pkg_name>).
-    #
-    # This used to list four entries -- clearpath_platform_description,
-    # franka_description, realsense2_description and sick_scan_xd. All of that
-    # geometry now lives in this package's own meshes/ (see CMakeLists), so one
-    # entry covers the Husky A200, the FR3 + Franka Hand, and the RealSense/SICK
-    # sensor housings alike.
     gz_resource_paths = [
         os.path.dirname(pkg_description),
+        os.path.join(pkg_description, 'models'),
+        os.path.join(pkg_description, 'aws_hospital_models'),
     ]
 
-    # tugbot_warehouse.sdf pulls the warehouse shell, shelves, pallets, carts
-    # and Tugbot in from Gazebo Fuel. Those models are vendored into
-    # fuel_cache/ (see CMakeLists.txt) so pointing the Fuel client's cache
-    # root there makes it a cache hit instead of a network fetch -- no
-    # ~/.gz/fuel pre-fetch needed on a fresh machine.
     fuel_cache_path = os.path.join(pkg_description, 'fuel_cache')
 
     xacro_file = os.path.join(pkg_description, 'urdf', 'pickplace_arm.urdf.xacro')
-    # tugbot_warehouse.sdf is the only world this project ships, and the one
-    # the mission's saved map was built against. Override with the WORLD env
-    # var to point at another .sdf under worlds/.
     world_name = os.environ.get('WORLD', 'tugbot_warehouse.sdf')
     world_file = os.path.join(pkg_description, 'worlds', world_name)
-    # World origin (0,0) is clear in this world and is where the map origin
-    # sits. A denser world can have the origin inside furniture, so
-    # SPAWN_X/SPAWN_Y let a different world pick a clear spot to spawn into.
     spawn_x = os.environ.get('SPAWN_X', '0.0')
     spawn_y = os.environ.get('SPAWN_Y', '0.0')
+    spawn_yaw = os.environ.get('SPAWN_YAW', '0.0')
+    spawn_delay = os.environ.get('SPAWN_DELAY', '0')
 
     robot_description = {
         'robot_description': ParameterValue(
@@ -55,13 +38,6 @@ def generate_launch_description():
         )
     }
 
-    # HEADLESS=1 runs the Gazebo SERVER only (no GUI, `-s`). Needed for heavy
-    # worlds: a GUI carrying a GlobalIlluminationVct plugin (high-quality voxel
-    # GI, 9 light bounces) was measured dragging the real-time factor
-    # down to ~0.28, which starves the LIDAR (drops to ~3 Hz) and makes
-    # slam_toolbox's scan matcher fail during rotation -- the map->base_link
-    # TF freezes while the robot physically spins. Sensor rendering (RGB-D,
-    # LIDAR) happens on the SERVER, so it is unaffected by dropping the GUI.
     gz_flags = '-s -r ' if os.environ.get('HEADLESS') == '1' else '-r '
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -86,22 +62,19 @@ def generate_launch_description():
         parameters=[robot_description, {'use_sim_time': True}],
     )
 
-    spawn_entity = Node(
-        package='ros_gz_sim',
-        executable='create',
-        arguments=[
-            '-topic', '/robot_description',
-            '-name', 'pickplace_arm',
-            '-x', spawn_x,
-            '-y', spawn_y,
-            # base_link (the root) is the Husky A200's chassis origin, which
-            # sits (wheel_radius - wheel_vertical_offset) = 0.1651 - 0.03282
-            # = 0.13228 m above the ground so the wheels touch the floor;
-            # base_footprint hangs exactly that far below it. A small margin
-            # is added so the robot settles onto the floor rather than
-            # spawning interpenetrating it.
-            '-z', '0.14'
-        ],
+    with open(world_file) as fh:
+        world_match = re.search(r"<world\s+name=['\"]([^'\"]+)['\"]", fh.read())
+    world_entity_name = world_match.group(1) if world_match else 'default'
+
+    spawn_entity = ExecuteProcess(
+        cmd=['bash', '-c',
+             f'until gz service -l 2>/dev/null | '
+             f'grep -q "^/world/{world_entity_name}/create$"; do sleep 2; done; '
+             f'sleep {spawn_delay}; '
+             f'exec ros2 run ros_gz_sim create '
+             f'-world {world_entity_name} '
+             f'-topic /robot_description -name pickplace_arm '
+             f'-x {spawn_x} -y {spawn_y} -z 0.14 -Y {spawn_yaw}'],
         output='screen',
     )
 
@@ -178,25 +151,22 @@ def generate_launch_description():
             '/front_camera/image@sensor_msgs/msg/Image[gz.msgs.Image',
             '/front_camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/front_camera/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
-            # Rigid-grasp control (ROS -> gz, hence ']'): one attach/detach pair
-            # per box, driven by the DetachableJoint plugins on the robot (see
-            # pickplace_arm.gazebo.xacro). The gripper welds the box on a
-            # VERIFIED grasp and releases it on open; friction alone let the box
-            # slip out mid-carry on every Tugbot-warehouse run.
             '/box_red/attach@std_msgs/msg/Empty]gz.msgs.Empty',
             '/box_red/detach@std_msgs/msg/Empty]gz.msgs.Empty',
             '/box_green/attach@std_msgs/msg/Empty]gz.msgs.Empty',
             '/box_green/detach@std_msgs/msg/Empty]gz.msgs.Empty',
             '/box_blue/attach@std_msgs/msg/Empty]gz.msgs.Empty',
             '/box_blue/detach@std_msgs/msg/Empty]gz.msgs.Empty',
+            '/rack_red/attach@std_msgs/msg/Empty]gz.msgs.Empty',
+            '/rack_red/detach@std_msgs/msg/Empty]gz.msgs.Empty',
+            '/rack_green/attach@std_msgs/msg/Empty]gz.msgs.Empty',
+            '/rack_green/detach@std_msgs/msg/Empty]gz.msgs.Empty',
+            '/rack_blue/attach@std_msgs/msg/Empty]gz.msgs.Empty',
+            '/rack_blue/detach@std_msgs/msg/Empty]gz.msgs.Empty',
         ],
         output='screen',
     )
 
-    # robot_localization EKF: fuses wheel odometry (forward velocity) with the
-    # IMU (heading) to publish a stable odom -> base_link transform. The
-    # diff_drive controller's own odom TF is disabled (enable_odom_tf: false)
-    # so this is the single source of that transform.
     ekf = Node(
         package='robot_localization',
         executable='ekf_node',

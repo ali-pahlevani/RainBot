@@ -1,27 +1,16 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- ros2_control system for Gazebo Harmonic.
-
-       This is the ONLY ros2_control system in the description. The Husky A200
-       is included with use_platform_controllers:=false and is_sim:=false so
-       Clearpath contributes no ros2_control block and no ign_ros2_control
-       plugin, and the FR3 is included with ros2_control:=false and
-       gazebo:=false for the same reason. Everything is driven from here. -->
+  <!-- ros2_control system for Gazebo Harmonic. This is the only ros2_control
+       system in the description: the Husky A200 is included with
+       use_platform_controllers:=false and is_sim:=false. -->
   <ros2_control name="pickplace_arm_system" type="system">
     <hardware>
       <plugin>gz_ros2_control/GazeboSimSystem</plugin>
     </hardware>
 
-    <!-- FR3 arm. initial_value spawns the arm in Franka's own "ready" pose
-         (joint2 -pi/4, joint4 -3pi/4, joint6 pi/2, joint7 pi/4): elbow bent,
-         well clear of the shoulder singularity and of the Husky's top plate.
-
-         This REPLACES the old gripper-down "claw ready" spawn pose, whose
-         joint values were derived for the 6-DOF placeholder arm on the old
-         0.08 m-tall chassis and are meaningless for a 7-DOF FR3 mounted
-         0.384 m up. The mission-side HOME_CONFIG still needs re-deriving
-         against this arm (see pick_and_place.py). -->
+    <!-- FR3 arm. initial_value spawns the arm in Franka's own "ready" pose:
+         elbow bent, clear of the shoulder singularity and the Husky's top plate. -->
     <joint name="fr3_joint1">
       <command_interface name="position"/>
       <state_interface name="position">
@@ -72,13 +61,8 @@
       <state_interface name="velocity"/>
     </joint>
 
-    <!-- Franka Hand. Only finger_joint1 is commanded; finger_joint2 carries a
-         <mimic> tag in franka_description's URDF and is reproduced here with
-         gz_ros2_control's own mimic parameters (it reads `mimic`/`multiplier`
-         from these <param> tags, NOT from the URDF <mimic> element - see
-         gz_system.cpp). It must still be declared in this block, or the
-         plugin throws "Mimicked joint not found"; but it must NOT be listed
-         in any controller's joint list, or two controllers fight over it. -->
+    <!-- Franka Hand. Only finger_joint1 is commanded; finger_joint2 mimics it via
+         gz_ros2_control's own mimic/multiplier <param> tags. -->
     <joint name="fr3_finger_joint1">
       <command_interface name="position"/>
       <state_interface name="position">
@@ -96,10 +80,9 @@
       <state_interface name="velocity"/>
     </joint>
 
-    <!-- Husky A200 wheels. The A200 macro names its wheel joints exactly the
-         same as the old placeholder base did, so diff_drive_controller's
-         joint lists carry over unchanged (its wheel_separation/wheel_radius
-         do NOT - see config/arm_controllers.yaml). -->
+    <!-- Husky A200 wheels. The A200 macro names its wheel joints exactly as the
+         old placeholder base did, so diff_drive_controller's joint lists carry
+         over unchanged (its wheel_separation/wheel_radius do not). -->
     <joint name="front_left_wheel_joint">
       <command_interface name="velocity"/>
       <state_interface name="position"/>
@@ -127,65 +110,45 @@
     <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
       <parameters>$(find pickplace_arm_description)/config/arm_controllers.yaml</parameters>
       <ros>
-        <remapping>~/robot_description:=/robot_description</remapping>
+    <!-- Emitted only when robot_ns is set: an empty <namespace/> is not the same
+         as no namespace to the plugin. -->
+        <xacro:if value="${robot_ns != ''}">
+          <namespace>${robot_ns}</namespace>
+        </xacro:if>
+        <remapping>~/robot_description:=${ns_topic}/robot_description</remapping>
       </ros>
     </plugin>
   </gazebo>
 
-  <!-- Rigid grasp: weld the box to the gripper instead of relying on friction.
-       Friction alone was never reliable. The box slipped out mid-carry on
-       EVERY run of the Tugbot-warehouse mission (and intermittently before
-       that, which is what the raised mu values below were chasing). A
-       DetachableJoint per box gives a hard constraint that cannot slip
-       regardless of physics load, carry speed or how off-centre the grip is.
-
-       The gripper still physically closes on the box and the grasp is still
-       VERIFIED by the finger gap before anything attaches (see grab_below),
-       so this makes a confirmed grasp hold; it does not fake one.
-
-       parent_link is fr3_link7, NOT fr3_hand, for the same reason it used to
-       be link6 rather than gripper_base: Gazebo's URDF importer MERGES links
-       joined by fixed joints into their parent, so fr3_hand (fixed to
-       fr3_link8, itself fixed to fr3_link7) does not survive into the spawned
-       SDF and naming it here fails the plugin outright ("Link with name
-       [fr3_hand] not found in model [pickplace_arm]. Failed to initialize."),
-       silently leaving the box on friction. fr3_link7 is the nearest ancestor
-       reached through a non-fixed joint (fr3_joint7), so it is the rigid body
-       fr3_hand was merged INTO. To confirm against a live sim, run
-       `gz model -m pickplace_arm` and read the link list.
-
-       Each box IS welded the moment it spawns, with no attach requested:
-       the plugin creates its joint as soon as the child model appears.
-       That makes the startup detach in PickAndPlace.__init__ load-bearing,
-       NOT a nicety: without it the robot tows all three boxes off the table
-       the moment it drives to the pick. -->
-  <xacro:macro name="box_attach" params="color">
+  <!-- Rigid grasp: weld the box to the gripper instead of relying on friction,
+       which was never reliable through a carry. -->
+  <xacro:macro name="grasp_attach" params="model">
     <gazebo>
       <plugin filename="gz-sim-detachable-joint-system"
               name="gz::sim::systems::DetachableJoint">
         <parent_link>fr3_link7</parent_link>
-        <child_model>box_${color}</child_model>
+        <child_model>${model}</child_model>
         <child_link>link</child_link>
-        <attach_topic>/box_${color}/attach</attach_topic>
-        <detach_topic>/box_${color}/detach</detach_topic>
-        <output_topic>/box_${color}/attach_state</output_topic>
+        <attach_topic>${ns_topic}/${model}/attach</attach_topic>
+        <detach_topic>${ns_topic}/${model}/detach</detach_topic>
+        <output_topic>${ns_topic}/${model}/attach_state</output_topic>
         <suppress_child_warning>true</suppress_child_warning>
       </plugin>
     </gazebo>
   </xacro:macro>
-  <xacro:box_attach color="red"/>
-  <xacro:box_attach color="green"/>
-  <xacro:box_attach color="blue"/>
+  <!-- The coloured boxes of the warehouse run. -->
+  <xacro:grasp_attach model="box_red"/>
+  <xacro:grasp_attach model="box_green"/>
+  <xacro:grasp_attach model="box_blue"/>
+  <!-- The sample racks of the hospital run. Declared unconditionally like the
+       boxes: suppress_child_warning makes a plugin whose child model is absent
+       from this world harmless, so one description serves both missions. -->
+  <xacro:grasp_attach model="rack_red"/>
+  <xacro:grasp_attach model="rack_green"/>
+  <xacro:grasp_attach model="rack_blue"/>
 
-  <!-- High friction + soft contact on the finger pads so the gripper can
-       actually hold a box by friction in Gazebo Harmonic. Raised 3.5 -> 5.0
-       (and the box models' own mu 2.0 -> 4.0) after the box intermittently
-       slipped out of a good grasp during the lift/carry in the heavier Ionic
-       world: under higher physics load the friction hold was marginal, so the
-       box occasionally pivoted free mid-carry. The box's mu was the lower
-       (limiting) of the two contacting surfaces, so both were raised.
-       (franka_description sets its own mu=1.13 on these links, but only when
-       built with gazebo:=true, which this description does not do.) -->
+  <!-- High friction + soft contact on the finger pads so the gripper can hold a
+       box by friction in Gazebo Harmonic. -->
   <gazebo reference="fr3_leftfinger">
     <mu1>5.0</mu1>
     <mu2>5.0</mu2>
@@ -219,89 +182,56 @@
   <xacro:wheel_friction link="rear_left_wheel"/>
   <xacro:wheel_friction link="rear_right_wheel"/>
 
-  <!-- Wrist RGB-D camera sensor (Gazebo Harmonic). camera_link is fixed to
-       fr3_hand but survives the URDF->SDF fixed-joint merge because it
-       carries a sensor. -->
-  <gazebo reference="camera_link">
-    <sensor name="rgbd_camera" type="rgbd_camera">
-      <topic>/camera</topic>
-      <!-- 5 Hz, down from 30. RGB-D rendering is BY FAR the most expensive
-           thing in this simulation: two 640x480 rgbd_camera sensors at 30 Hz
-           held the real-time factor at 0.28 with the Gazebo GUI up (measured
-           on gazebo.launch.py alone, so this is the simulator itself, not the
-           ROS stack). Cutting both to what the code actually consumes took it
-           to 0.80, and the full mission stack with RViz and the GUI now runs
-           at RTF 1.000 - i.e. real time instead of roughly a quarter of it.
-           A 3-box run went from ~555 s of wall clock to ~355 s.
-
-           5 Hz is generous for THIS camera. The wrist camera is only read by
-           detect_box_pose(), whose default timeout is 5.0 s, and the
-           pick-and-place mission never uses that path at all - it picks with
-           the front camera via grab_below(). So this sensor was rendering 30
-           frames a second for nothing. -->
-      <update_rate>5</update_rate>
-      <always_on>1</always_on>
-      <visualize>true</visualize>
-      <camera>
-        <horizontal_fov>1.047</horizontal_fov>
-        <image>
-          <width>640</width>
-          <height>480</height>
-          <format>R8G8B8</format>
-        </image>
-        <clip>
-          <near>0.05</near>
-          <far>5.0</far>
-        </clip>
-        <noise>
-          <type>gaussian</type>
-          <mean>0.0</mean>
-          <stddev>0.007</stddev>
-        </noise>
-      </camera>
-      <!-- camera_link, NOT camera_optical_link. Gazebo Harmonic's rgbd_camera
-           emits its PointCloud2 in the GZ BODY convention (X forward, Y left,
-           Z up), not the ROS optical one (Z forward, X right, Y down). Tagging
-           it with the optical frame was therefore a lie about the data, and
-           RViz - which, unlike the mission code, actually honours the header
-           frame - applied the optical->body rotation and drew the whole cloud
-           swung 90 deg out to the robot's side.
-
-           Measured off a live frame to settle which convention it really is:
-               x  +0.26 .. +7.21   (all positive: this is the depth axis)
-               y  -5.06 .. +5.60   (left/right)
-               z  -0.24 .. +4.28   (floor, 0.22 below the lens, up to ceiling)
-           i.e. unambiguously X-forward. See the front camera below for the
-           same fix and the reason nothing else changes. -->
-      <gz_frame_id>camera_link</gz_frame_id>
-    </sensor>
-  </gazebo>
+  <!-- Wrist RGB-D camera sensor. camera_link is fixed to fr3_hand but survives
+       the URDF->SDF fixed-joint merge because it carries a sensor. -->
+  <xacro:if value="$(arg wrist_camera)">
+    <gazebo reference="camera_link">
+      <sensor name="rgbd_camera" type="rgbd_camera">
+        <topic>${ns_topic}/camera</topic>
+        <update_rate>5</update_rate>
+        <always_on>1</always_on>
+        <visualize>true</visualize>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.05</near>
+            <far>5.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.007</stddev>
+          </noise>
+        </camera>
+        <gz_frame_id>${ns_frame}camera_link</gz_frame_id>
+      </sensor>
+    </gazebo>
+  </xacro:if>
 
   <!-- 2D LIDAR sensor (Gazebo Harmonic gpu_lidar) for SLAM + Nav2 -->
   <gazebo reference="lidar_link">
     <sensor name="lidar" type="gpu_lidar">
-      <topic>/scan</topic>
-      <update_rate>10</update_rate>
+      <topic>${ns_topic}/scan</topic>
+      <update_rate>15</update_rate>
       <always_on>1</always_on>
       <visualize>true</visualize>
       <lidar>
         <scan>
-          <!-- 270 deg forward arc (-135..+135 deg); the excluded 90 deg
-               wedge points straight back at the arm, so the scan never hits
-               it. With the FR3 at x=0.0799 and this sensor at x=0.4449 the
-               arm subtends only ~+/-21 deg about the 180 deg bearing, well
-               inside the wedge. 270 samples keeps the same ~1 deg/sample
-               resolution as a 360-sample full circle. -->
           <horizontal>
             <samples>270</samples>
             <resolution>1</resolution>
-            <min_angle>-2.35619449</min_angle>
-            <max_angle>2.35619449</max_angle>
+            <min_angle>-1.65806279</min_angle>
+            <max_angle>1.65806279</max_angle>
           </horizontal>
         </scan>
         <range>
           <min>0.12</min>
-          <max>8.0</max>
+          <max>25.0</max>
           <resolution>0.01</resolution>
         </range>
         <noise>
@@ -310,47 +240,31 @@
           <stddev>0.01</stddev>
         </noise>
       </lidar>
-      <gz_frame_id>lidar_link</gz_frame_id>
+      <gz_frame_id>${ns_frame}lidar_link</gz_frame_id>
     </sensor>
   </gazebo>
 
-  <!-- IMU sensor: publishes orientation + angular velocity, fused with wheel
-       odometry by the robot_localization EKF to keep heading accurate. -->
   <gazebo reference="imu_link">
     <sensor name="imu" type="imu">
-      <topic>/imu</topic>
+      <topic>${ns_topic}/imu</topic>
       <update_rate>50</update_rate>
       <always_on>1</always_on>
-      <gz_frame_id>imu_link</gz_frame_id>
+      <gz_frame_id>${ns_frame}imu_link</gz_frame_id>
     </sensor>
   </gazebo>
 
   <!-- Front RGB-D camera: detects the box ahead while the base drives. -->
   <gazebo reference="front_camera_link">
     <sensor name="front_rgbd_camera" type="rgbd_camera">
-      <topic>/front_camera</topic>
-      <!-- 15 Hz, down from 30 - see the wrist camera above for the measured
-           cost. This one carries the whole mission (box pick AND column
-           placement), so it keeps roughly 2x the margin it needs rather than
-           being cut to the bone: the tightest consumer is approach_column's
-           servo loop, which calls detect_box_front(timeout_sec=0.25) and then
-           publishes for 4 x 0.03 s, so it cannot go round faster than about
-           8 Hz. At 15 Hz a fresh frame is always waiting for it.
-
-           Verified, not assumed: a full 3-box run at these rates placed and
-           verified all three boxes with ZERO "lost the column", "no box
-           detected" or "jaws closed on air" warnings. -->
-      <update_rate>15</update_rate>
+      <topic>${ns_topic}/front_camera</topic>
+      <update_rate>10</update_rate>
       <always_on>1</always_on>
       <visualize>true</visualize>
       <camera>
-        <!-- Wide 90 deg FOV so the box stays in view even when Nav2 leaves the
-             base a little off-heading, so the front-cam approach never has to
-             rotate the chassis to re-acquire it (no spin before arriving). -->
         <horizontal_fov>1.57</horizontal_fov>
         <image>
-          <width>640</width>
-          <height>480</height>
+          <width>320</width>
+          <height>320</height>
           <format>R8G8B8</format>
         </image>
         <clip>
@@ -363,23 +277,7 @@
           <stddev>0.007</stddev>
         </noise>
       </camera>
-      <!-- front_camera_link, NOT front_camera_optical_link - same correction
-           as the wrist camera above, and the reason the cloud used to render
-           off to the robot's side in RViz instead of ahead of it.
-
-           This changes NOTHING for the mission: PickAndPlace._detect never
-           reads the header frame, it hardcodes cloud_frame='front_camera_link'
-           and transforms from there, which is exactly the frame the data was
-           always really in - which is also why detection stayed accurate (the
-           column near-face reads to 3 mm) the whole time the header was wrong.
-           The gates' documented "camera frame (X-forward, Y-left, Z-up)" is
-           now literally what the header says too.
-
-           front_camera_optical_link is left in the URDF: it costs one static
-           transform, it is the correct ROS optical frame should anything ever
-           need one (depth_image_proc and friends assume that convention), and
-           removing it would break nothing but document nothing either. -->
-      <gz_frame_id>front_camera_link</gz_frame_id>
+      <gz_frame_id>${ns_frame}front_camera_link</gz_frame_id>
     </sensor>
   </gazebo>
 

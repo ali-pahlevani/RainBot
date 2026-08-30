@@ -1,53 +1,11 @@
-"""Block until the sim stack is actually ready, then exit 0.
-
-WHY THIS EXISTS
----------------
-The mission launches used to stage themselves on fixed TimerActions -- props at
-12 s, localization at 75 s, nav2 at 95 s, the mission itself at 120 s. Those
-numbers were calibrated against a real symptom: /clock jumping BACKWARDS
-hundreds of times during startup, which makes AMCL throw
-tf2::ExtrapolationException on lidar_link->odom and abort outright (SIGABRT),
-stranding the run.
-
-Re-measured, there are TWO different things that both look like "the clock
-jumped backwards", and only one of them is a fault:
-
-  1. TRANSPORT REORDERING -- benign, and constant. /clock is BEST_EFFORT over
-     UDP, so consecutive messages arrive out of order all the time. Sampled
-     live off a healthy sim: 310 backward steps in 2316 messages, every single
-     one exactly one 10 ms sim tick (max 20 ms), while the clock advanced 113 s
-     net over the same 12 s window. Nothing is wrong; that is just UDP.
-
-  2. A SECOND SIMULATOR -- the real fault. An orphaned gz server left from a
-     previous run keeps publishing onto the same /clock, and the two disagree
-     by whole seconds. Measured with a duplicate stack running: 144 jump-backs
-     continuing to t+74.2 s, which is almost exactly where the old 75 s
-     localization timer sat. That is what those timers were really buying
-     protection from.
-
-Started clean, with one stack, the sim is ready in seconds: first /clock at
-t+3.2 s, TF odom->base_link at t+5.3 s. So the fixed schedule spent ~115 s
-waiting for nothing on a healthy machine, and on a dirty one it silently
-papered over a process leak instead of surfacing it.
-
-Hence --jump-threshold (default 0.1 s): 5x larger than the worst benign
-reordering step, orders of magnitude smaller than a real two-simulator
-disagreement. Below it, steps are ignored; above it, the stability window
-restarts AND the log names the likely cause. A clean start therefore proceeds
-in a few seconds, while a genuinely sick clock still keeps AMCL from coming up
-and aborting on tf2::ExtrapolationException.
-
-Every check is bounded by --timeout. On expiry this still exits 0, with a
-warning: a stuck probe must never be able to brick a launch that would
-otherwise have worked. The stage behind it starts anyway, exactly as the old
-unconditional timer would have.
-"""
+"""Block until the sim stack is ready, then exit 0."""
 import argparse
 import sys
 import time
 
 import rclpy
 from rclpy.node import Node
+from rosidl_runtime_py.utilities import get_message
 from rclpy.utilities import remove_ros_args
 from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
                        ReliabilityPolicy)
@@ -56,8 +14,6 @@ from rosgraph_msgs.msg import Clock
 import tf2_ros
 
 
-# /clock is published BEST_EFFORT/VOLATILE by ros_gz_bridge; a RELIABLE
-# subscription silently never matches it.
 CLOCK_QOS = QoSProfile(depth=10,
                        reliability=ReliabilityPolicy.BEST_EFFORT,
                        durability=DurabilityPolicy.VOLATILE,
@@ -84,6 +40,9 @@ class WaitFor(Node):
             self.buf = tf2_ros.Buffer()
             self.listener = tf2_ros.TransformListener(self.buf, self)
         self.tf_ok = not args.tf
+        self._topic_seen = set()
+        self._topic_subs = {}
+        self._tf_seen = set()
 
         self.create_timer(0.25, self._tick)
 
@@ -96,9 +55,6 @@ class WaitFor(Node):
             self.stable_since = now
             self.get_logger().info(f'/clock is publishing (t+{now - self.t0:.1f}s)')
         elif t < self.last_clock - self.args.jump_threshold:
-            # A REAL backwards jump. Restart the stability window and say so
-            # loudly -- this almost always means an orphaned gz server from a
-            # previous run is still alive and fighting this one for /clock.
             self.jumps += 1
             self.stable_since = now
             self.worst_jump = max(self.worst_jump, self.last_clock - t)
@@ -118,32 +74,50 @@ class WaitFor(Node):
         return (time.time() - self.stable_since) >= self.args.clock_stable
 
     def _tf_ready(self):
+        """True when every requested transform is available."""
         if self.tf_ok:
             return True
-        try:
-            self.buf.lookup_transform(self.args.tf[0], self.args.tf[1],
-                                      rclpy.time.Time())
-            self.tf_ok = True
+        for pair in self.args.tf:
+            key = tuple(pair)
+            if key in self._tf_seen:
+                continue
+            try:
+                self.buf.lookup_transform(pair[0], pair[1], rclpy.time.Time())
+            except Exception:
+                return False
+            self._tf_seen.add(key)
             self.get_logger().info(
-                f'TF {self.args.tf[0]}->{self.args.tf[1]} available '
+                f'TF {pair[0]}->{pair[1]} available '
                 f'(t+{time.time() - self.t0:.1f}s)')
-        except Exception:
-            pass
-        return self.tf_ok
+        self.tf_ok = True
+        return True
 
     def _topics_ready(self):
+        """A topic counts as ready once a message has actually arrived on it."""
+        ready = True
         for t in self.args.topic:
-            if not self.count_publishers(t):
-                return False
-        return True
+            if t in self._topic_seen:
+                continue
+            ready = False
+            if t not in self._topic_subs:
+                types = dict(self.get_topic_names_and_types()).get(t)
+                if not types:
+                    continue                 # not advertised yet
+                try:
+                    msg_cls = get_message(types[0])
+                except Exception:            # type not resolvable yet
+                    continue
+                qos = QoSProfile(depth=1,
+                                 reliability=ReliabilityPolicy.BEST_EFFORT)
+                self._topic_subs[t] = self.create_subscription(
+                    msg_cls, t, lambda _m, k=t: self._topic_seen.add(k), qos)
+        return ready
 
     def _services_ready(self):
         names = {n for n, _ in self.get_service_names_and_types()}
         return all(s in names for s in self.args.service)
 
     def _actions_ready(self):
-        # An action server exposes <action>/_action/send_goal as a service, so
-        # this needs no action client (and no type import) to detect.
         names = {n for n, _ in self.get_service_names_and_types()}
         return all(f'{a}/_action/send_goal' in names for a in self.args.action)
 
@@ -187,12 +161,6 @@ class WaitFor(Node):
 
 
 def main(argv=None):
-    # launch_ros appends its own "--ros-args -r __node:=... --params-file ..."
-    # to every Node's arguments. Those must be stripped before argparse sees
-    # them, and anything left over tolerated, or the gate dies instantly with
-    # "unrecognized arguments" -- which is especially nasty here because
-    # OnProcessExit fires on ANY exit, so the launch would sail on with every
-    # stage effectively ungated and no obvious sign of it.
     argv = remove_ros_args(args=sys.argv)[1:] if argv is None else argv
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--label', default='wait_for')
@@ -209,7 +177,8 @@ def main(argv=None):
                         'forever. A genuine fault -- an orphaned second gz '
                         'server, a sim reset -- moves time by whole seconds, so '
                         '0.1 s separates the two cleanly with 5x margin.')
-    p.add_argument('--tf', nargs=2, metavar=('TARGET', 'SOURCE'))
+    p.add_argument('--tf', nargs=2, action='append', default=[],
+                   metavar=('TARGET', 'SOURCE'))
     p.add_argument('--topic', action='append', default=[])
     p.add_argument('--service', action='append', default=[])
     p.add_argument('--action', action='append', default=[])

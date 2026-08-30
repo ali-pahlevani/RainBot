@@ -1,6 +1,13 @@
-controller_manager:
+# Node keys are wildcarded (`/**/name`) so one file serves both the single robot
+# at /controller_manager and a namespaced one at /r1/controller_manager.
+# Without it a namespaced controller_manager comes up with no parameters at all
+# and every spawner dies with "Failed loading controller <name>".
+/**/controller_manager:
   ros__parameters:
-    update_rate: 100  # Hz
+# 25 Hz drives every controller, and through joint_state_broadcaster it sets the
+# /tf republish rate as well. Nav2's controller runs at 20 Hz, so this stays
+# ahead of every consumer.
+    update_rate: 25  # Hz
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
     arm_controller:
@@ -10,27 +17,13 @@ controller_manager:
     diff_drive_controller:
       type: diff_drive_controller/DiffDriveController
 
-# Explicit joint list, ONLY because of the mimic finger.
-#
-# gz_ros2_control deliberately registers a mimic joint's state/command
-# interfaces under "<joint_name>_mimic" (gz_system.cpp: `suffix = "_mimic"`),
-# so left to its default "publish everything available" mode the broadcaster
-# emits a joint named `fr3_finger_joint2_mimic` on /joint_states. That name
-# exists in NO robot model, and move_group logs
-#   "Joint 'fr3_finger_joint2_mimic' not found in model 'pickplace_arm'"
-# once per message. Listing the real joints here drops it.
-#
-# Nothing is lost by omitting fr3_finger_joint2 itself: it is a <mimic> of
-# fr3_finger_joint1 in the URDF, and BOTH consumers reconstruct it rather than
-# needing it on the wire - robot_state_publisher derives the mimic transform
-# (verified: publishing only finger_joint1=0.04 moves fr3_rightfinger to
-# y=-0.04), and MoveIt derives it in its own model. Gazebo still physically
-# drives the joint via gz_ros2_control's mimic handling, which is independent
-# of what this broadcaster publishes.
-#
-# joint_state_broadcaster only leaves its "all available interfaces" mode when
-# `joints` AND `interfaces` are BOTH set, so both are required here.
-joint_state_broadcaster:
+# Explicit joint list, only because of the mimic finger: gz_ros2_control registers
+# a mimic joint's interfaces under "<joint_name>_mimic", so the default
+# publish-everything mode emits `fr3_finger_joint2_mimic`, a name in no robot
+# model. fr3_finger_joint2 itself is omitted because robot_state_publisher and
+# MoveIt both derive it. `joints` and `interfaces` must both be set for the
+# broadcaster to leave its all-available-interfaces mode.
+/**/joint_state_broadcaster:
   ros__parameters:
     joints:
       - fr3_joint1
@@ -49,7 +42,7 @@ joint_state_broadcaster:
       - position
       - velocity
 
-arm_controller:
+/**/arm_controller:
   ros__parameters:
     joints:
       - fr3_joint1
@@ -70,11 +63,10 @@ arm_controller:
     constraints:
       stopped_velocity_tolerance: 0.01
       goal_time: 0.5
-gripper_controller:
+/**/gripper_controller:
   ros__parameters:
-    # Only finger_joint1. fr3_finger_joint2 mimics it (declared with
-    # mimic/multiplier params in pickplace_arm.gazebo.xacro); listing it here
-    # too would have the controller and the mimic both driving one joint.
+# Only finger_joint1: fr3_finger_joint2 mimics it, so listing it here too would
+# have the controller and the mimic both driving one joint.
     joints:
       - fr3_finger_joint1
     command_interfaces:
@@ -85,7 +77,7 @@ gripper_controller:
     state_publish_rate: 50.0
     action_monitor_rate: 20.0
     allow_partial_joints_goal: true
-diff_drive_controller:
+/**/diff_drive_controller:
   ros__parameters:
     left_wheel_names: ["front_left_wheel_joint", "rear_left_wheel_joint"]
     right_wheel_names: ["front_right_wheel_joint", "rear_right_wheel_joint"]
@@ -95,16 +87,10 @@ diff_drive_controller:
     wheel_separation: 0.555
     wheels_per_side: 2
     wheel_radius: 0.1651
-    # Skid-steer scrub correction: a 4-wheel skid-steer physically rotates
-    # less than the 2-wheel diff-drive odom model predicts (the fore/aft wheels
-    # scrub sideways), so the effective track is inflated by this factor to
-    # make odom yaw match reality.
-    #
-    # NEEDS RECALIBRATION. 1.46 was measured on the old placeholder chassis
-    # (wheelbase 0.24 / track 0.30). The A200's footprint is far squarer
-    # (wheelbase 0.512 / track 0.555), so its scrub behaviour differs; 1.46 is
-    # carried over only as a starting point. Recalibrate the same way as
-    # before: rotate in place and compare odom yaw against Gazebo ground truth.
+# Skid-steer scrub correction: a 4-wheel skid-steer rotates less than the
+# 2-wheel diff-drive odom model predicts, so the effective track is inflated
+# to make odom yaw match reality. Measured on the old chassis; recalibrate for
+# the A200 by rotating in place and comparing odom yaw against ground truth.
     wheel_separation_multiplier: 1.46
     left_wheel_radius_multiplier: 1.0
     right_wheel_radius_multiplier: 1.0
@@ -114,20 +100,23 @@ diff_drive_controller:
     pose_covariance_diagonal: [0.001, 0.001, 0.0, 0.0, 0.0, 0.01]
     twist_covariance_diagonal: [0.001, 0.0, 0.0, 0.0, 0.0, 0.01]
     open_loop: false
-    # The robot_localization EKF publishes odom->base_link (fusing this wheel
-    # odom with the IMU), so the controller must not also publish that TF.
+# The robot_localization EKF publishes odom->base_link, so the controller must
+# not also publish that TF.
     enable_odom_tf: false
     cmd_vel_timeout: 0.5
     use_stamped_vel: false
+# The hardware ceiling for the whole stack. The three limiters stay ordered --
+# MPPI 0.90/2.2 asks, the velocity smoother 0.90/2.4 passes on, this 1.00/2.5
+# executes -- so no layer silently clips a command the layer above planned.
     linear:
       x:
         has_velocity_limits: true
-        max_velocity: 0.8
+        max_velocity: 1.0
         has_acceleration_limits: true
-        max_acceleration: 1.5
+        max_acceleration: 2.5
     angular:
       z:
         has_velocity_limits: true
-        max_velocity: 2.2
+        max_velocity: 2.5
         has_acceleration_limits: true
-        max_acceleration: 4.0
+        max_acceleration: 6.0

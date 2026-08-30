@@ -3,19 +3,17 @@ project(pickplace_arm_description)
 
 find_package(ament_cmake REQUIRED)
 
-# `meshes/` and `urdf/vendor/` hold VENDORED third-party geometry: the Husky
-# A200 (Clearpath), the FR3 arm + Franka Hand (Franka Robotics), and the
-# RealSense/SICK sensor housings. These used to be referenced out of their own
-# packages via $(find ...) / package://, but those packages were nested git
-# checkouts that could not be pushed with this project, so only what this robot
-# actually uses has been copied in here. Upstream licences sit alongside the
-# meshes as LICENSE.<package>.
-# `fuel_cache/` is a vendored copy of the Gazebo Fuel models the Tugbot
-# warehouse world pulls in (warehouse shell, shelves, pallets, carts, Tugbot).
-# Pointing GZ_FUEL_CACHE_PATH at it (see gazebo.launch.py) makes the world
-# load with no network access and no ~/.gz/fuel pre-fetch step.
+# `meshes/` and `urdf/vendor/` hold vendored third-party geometry (Husky A200,
+# FR3 arm + Franka Hand, RealSense/SICK housings); upstream licences sit
+# alongside them as LICENSE.<package>.
+# `fuel_cache/` is a vendored copy of the Gazebo Fuel models the Tugbot world
+# pulls in, so it loads with no network access.
+# `aws_hospital_models/` holds the AWS RoboMaker hospital models that
+# aws_hospital.sdf references by model:// URI. Omitting it fails at runtime,
+# not at build time.
 install(
   DIRECTORY urdf launch rviz config worlds models meshes fuel_cache
+            aws_hospital_models
   DESTINATION share/${PROJECT_NAME}
 )
 

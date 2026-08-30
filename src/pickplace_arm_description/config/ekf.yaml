@@ -1,11 +1,10 @@
 # robot_localization EKF: fuses the diff_drive wheel odometry with the IMU to
-# produce a stable odom -> base_link estimate. The 4-wheel skid-steer's
-# wheel-only heading drifts badly (lateral scrub during turns), which distorts
-# the SLAM map; taking heading/yaw-rate from the IMU instead fixes that.
+# produce a stable odom -> base_link estimate. The skid-steer's wheel-only
+# heading drifts badly, so heading and yaw rate come from the IMU instead.
 ekf_filter_node:
   ros__parameters:
     use_sim_time: true
-    frequency: 30.0
+    frequency: 20.0
     sensor_timeout: 0.2
     two_d_mode: true            # planar robot: zero out z/roll/pitch
     publish_tf: true
@@ -14,8 +13,8 @@ ekf_filter_node:
     base_link_frame: base_link
     world_frame: odom
 
-    # Wheel odometry: trust its body-frame forward velocity (vx) only. Its
-    # heading/yaw-rate are unreliable on a skid-steer, so leave them to the IMU.
+# Wheel odometry: trust its body-frame forward velocity (vx) only. Heading and
+# yaw rate are unreliable on a skid-steer, so leave them to the IMU.
     odom0: /diff_drive_controller/odom
     #               x     y     z     roll  pitch yaw   vx    vy    vz    vr    vp    vyaw  ax ay az
     odom0_config: [false,false,false, false,false,false, true,false,false, false,false,false, false,false,false]

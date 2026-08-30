@@ -1,0 +1,1389 @@
+<?xml version='1.0' encoding='ASCII'?>
+<!-- AWS RoboMaker hospital, one floor, ported to Gazebo Harmonic.
+
+     Geometry is AWS's, unchanged: 183 model instances over a building roughly
+     25 m x 51 m, with real interior walls, a floor and a ceiling. Licence and
+     attribution sit with the meshes in aws_hospital_models/.
+
+     Generated from the archived hospital.world (the aws-robotics repo's `ros1`
+     branch). Only what Classic and Harmonic disagree about changed in the port:
+     the world header, the ground plane and sun, and how model URIs resolve.
+
+     Run it with the resource path pointing at the vendored models:
+         WORLD=aws_hospital.sdf ros2 launch pickplace_arm_description gazebo.launch.py
+
+     The ceiling blocks any view from above. It is the last model in the file
+     and named `hospital_ceiling`, so it can be unticked in the entity tree. -->
+<sdf version='1.7'>
+  <world name='aws_hospital'>
+    <gravity>0 0 -9.8</gravity>
+    <physics type='ode'>
+      <max_step_size>0.01</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <max_contacts>10</max_contacts>
+    </physics>
+    <plugin name='ignition::gazebo::systems::Physics' filename='libignition-gazebo-physics-system.so'/>
+    <plugin name='ignition::gazebo::systems::UserCommands' filename='libignition-gazebo-user-commands-system.so'/>
+    <plugin name='ignition::gazebo::systems::SceneBroadcaster' filename='libignition-gazebo-scene-broadcaster-system.so'/>
+    <plugin name='ignition::gazebo::systems::Imu' filename='ignition-gazebo-imu-system'/>
+    <plugin name='ignition::gazebo::systems::Sensors' filename='ignition-gazebo-sensors-system'>
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <scene>
+      <ambient>0.8 0.8 0.8 1</ambient>
+      <background>0.3 0.7 0.9 1</background>
+      <shadows>0</shadows>
+      <grid>false</grid>
+    </scene>
+
+  <!-- Indoors under a ceiling, so the sun is a fill light rather than a
+       shadow-caster; shadows are off for real-time factor. -->
+    <light type="directional" name="sun">
+      <cast_shadows>0</cast_shadows>
+      <pose>0 0 12 0 0 0</pose>
+      <diffuse>1 1 1 1</diffuse>
+      <specular>0.3 0.3 0.3 1</specular>
+      <direction>0.2 0.2 -1</direction>
+    </light>
+
+    <model name='ground_plane'>
+      <static>true</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <plane><normal>0.0 0.0 1</normal><size>1 1</size></plane>
+          </geometry>
+        </collision>
+      </link>
+      <pose>0 0 0 0 0 0</pose>
+    </model>
+
+    <include>
+    <name>aws_robomaker_hospital_floor_01_floor</name>
+    <uri>model://aws_robomaker_hospital_floor_01_floor</uri>
+    <static>true</static>
+    <pose>-0.001425 -0.014447 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_floor_01_walls</name>
+    <uri>model://aws_robomaker_hospital_floor_01_walls</uri>
+    <static>true</static>
+    <pose>-0.013823 -0.013783 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_nursesstation_01</name>
+    <uri>model://aws_robomaker_hospital_nursesstation_01</uri>
+    <static>true</static>
+    <pose>0 1.5 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_elevator_01_portal</name>
+    <uri>model://aws_robomaker_hospital_elevator_01_portal</uri>
+    <static>true</static>
+    <pose>-1.50654 19.4813 0.19 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_elevator_01_portal_1</name>
+    <uri>model://aws_robomaker_hospital_elevator_01_portal</uri>
+    <static>true</static>
+    <pose>1.51134 19.487 0.19 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_elevator_01_car</name>
+    <uri>model://aws_robomaker_hospital_elevator_01_car</uri>
+    <static>true</static>
+    <pose>-1.49587 19.35 0.19 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_elevator_01_car_1</name>
+    <uri>model://aws_robomaker_hospital_elevator_01_car</uri>
+    <static>true</static>
+    <pose>1.5407 19.35 0.19 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_elevator_01_door</name>
+    <uri>model://aws_robomaker_hospital_elevator_01_door</uri>
+    <static>true</static>
+    <pose>-1.51 19.35 0.19 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_elevator_01_door_1</name>
+    <uri>model://aws_robomaker_hospital_elevator_01_door</uri>
+    <static>true</static>
+    <pose>1.52843 19.3627 0.19 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_half_open_01</name>
+    <uri>model://aws_robomaker_hospital_curtain_half_open_01</uri>
+    <static>true</static>
+    <pose>-11.0216 -13.8069 0 0 -0 1.55358</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_closed_01</name>
+    <uri>model://aws_robomaker_hospital_curtain_closed_01</uri>
+    <static>true</static>
+    <pose>-11.022 -7.27757 0 0 -0 1.57907</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_half_open_01_1</name>
+    <uri>model://aws_robomaker_hospital_curtain_half_open_01</uri>
+    <static>true</static>
+    <pose>11.1417 -21.4039 0 0 0 -1.55117</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_half_open_01_2</name>
+    <uri>model://aws_robomaker_hospital_curtain_half_open_01</uri>
+    <static>true</static>
+    <pose>11.1068 -17.8472 0 0 0 -1.55117</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_half_open_01_3</name>
+    <uri>model://aws_robomaker_hospital_curtain_half_open_01</uri>
+    <static>true</static>
+    <pose>11.1374 -14.1551 0 0 0 -1.55117</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_half_open_01_4</name>
+    <uri>model://aws_robomaker_hospital_curtain_half_open_01</uri>
+    <static>true</static>
+    <pose>-11.0332 -17.61 0 0 -0 1.55358</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_half_open_01_5</name>
+    <uri>model://aws_robomaker_hospital_curtain_half_open_01</uri>
+    <static>true</static>
+    <pose>-11.0086 -21.7566 0 0 -0 1.55358</pose>
+    </include>
+    <include>
+    <name>CGMClassic</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>11.1777 -18.4129 0 0 0 -3.13719</pose>
+    </include>
+    <include>
+    <name>StorageRack</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/StorageRack</uri>
+    <static>true</static>
+    <pose>9.07005 -10.3582 -7.57769e+08 -2e-06 0 0</pose>
+    </include>
+    <include>
+    <name>CGMClassic_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>11.1179 -14.6493 0 0 0 -3.13599</pose>
+    </include>
+    <include>
+    <name>Chair</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Chair</uri>
+    <static>true</static>
+    <pose>-0.6 -0.78 0 0 0 -1.5499</pose>
+    </include>
+    <include>
+    <name>Chair_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Chair</uri>
+    <static>true</static>
+    <pose>0.63 -0.74 0 0 0 -1.5341</pose>
+    </include>
+    <include>
+    <name>WhiteChipChair</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/WhiteChipChair</uri>
+    <static>true</static>
+    <pose>-8.87142 9.15707 -7.57769e+08 0 -0.152685 0</pose>
+    </include>
+    <include>
+    <name>TrolleyBed</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/TrolleyBed</uri>
+    <static>true</static>
+    <pose>4.85934 -4.87229 -7.57769e+08 0 -1e-06 0</pose>
+    </include>
+    <include>
+    <name>SurgicalTrolley</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/SurgicalTrolley</uri>
+    <static>true</static>
+    <pose>11.4301 3.56328 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>CGMClassic_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>-11.2304 -21.1134 0 0 0 -3.11834</pose>
+    </include>
+    <include>
+    <name>PotatoChipChair</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PotatoChipChair</uri>
+    <static>true</static>
+    <pose>-7.0 5.6 0 0 0 0.0000</pose>
+    </include>
+    <include>
+    <name>PotatoChipChair_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PotatoChipChair</uri>
+    <static>true</static>
+    <pose>-7.0 7.5 0 0 0 0.0000</pose>
+    </include>
+    <include>
+    <name>PotatoChipChair_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PotatoChipChair</uri>
+    <static>true</static>
+    <pose>-7.0 9.4 0 0 0 0.0000</pose>
+    </include>
+    <include>
+    <name>PotatoChipChair_3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PotatoChipChair</uri>
+    <static>true</static>
+    <pose>6.0 5.6 0 0 0 3.1416</pose>
+    </include>
+    <include>
+    <name>PotatoChipChair_6</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PotatoChipChair</uri>
+    <static>true</static>
+    <pose>6.0 7.5 0 0 0 3.1416</pose>
+    </include>
+    <include>
+    <name>PotatoChipChair_7</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PotatoChipChair</uri>
+    <static>true</static>
+    <pose>6.0 9.4 0 0 0 3.1416</pose>
+    </include>
+    <include>
+    <name>AdjTable</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/AdjTable</uri>
+    <static>true</static>
+    <pose>1.2174 -5.60888 0 0 0 -0.008733</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_CoffeeTable_01</name>
+    <uri>model://aws_robomaker_residential_CoffeeTable_01</uri>
+    <static>true</static>
+    <pose>-10.2383 -29.9144 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_Sofa_01</name>
+    <uri>model://aws_robomaker_residential_Sofa_01</uri>
+    <static>true</static>
+    <pose>-11.077 -30.5544 -1e-05 2.6e-05 -3e-06 1.56984</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_TV_02</name>
+    <uri>model://aws_robomaker_residential_TV_02</uri>
+    <static>true</static>
+    <pose>-12.4122 -28.4594 1.53211 0 -0 3.13999</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_KitchenCabinet_01</name>
+    <uri>model://aws_robomaker_residential_KitchenCabinet_01</uri>
+    <static>true</static>
+    <pose>-11.1379 -25.6941 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_Refrigerator_01</name>
+    <uri>model://aws_robomaker_residential_Refrigerator_01</uri>
+    <static>true</static>
+    <pose>-9.28238 -24.5015 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_SofaB_01</name>
+    <uri>model://aws_robomaker_residential_SofaB_01</uri>
+    <static>true</static>
+    <pose>-10.82 -28.67 0 0 0 -1.5603</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_SofaB_01_1</name>
+    <uri>model://aws_robomaker_residential_SofaB_01</uri>
+    <static>true</static>
+    <pose>-9.74 -28.65 0 0 0 -1.5603</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitA_01</name>
+    <uri>model://aws_robomaker_residential_PortraitA_01</uri>
+    <static>true</static>
+    <pose>1.14738 -6.92303 1.41115 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>2.40772 -3.61975 1.54508 0 0 -1.57619</pose>
+    </include>
+    <include>
+    <name>MopCart3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/MopCart3</uri>
+    <static>true</static>
+    <pose>1.07736 -8.59036 -6.7e-05 0 1e-06 0</pose>
+    </include>
+    <include>
+    <name>Drawer</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Drawer</uri>
+    <static>true</static>
+    <pose>3.18472 -6.54185 0 0 0 -1.55907</pose>
+    </include>
+    <include>
+    <name>Drawer_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Drawer</uri>
+    <static>true</static>
+    <pose>3.19085 -5.94838 0 0 0 -1.55907</pose>
+    </include>
+    <include>
+    <name>OfficeChairBlack</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/OfficeChairBlack</uri>
+    <static>true</static>
+    <pose>1.20234 -6.39435 0 0 -0 3.13125</pose>
+    </include>
+    <include>
+    <name>OfficeChairBlack_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/OfficeChairBlack</uri>
+    <static>true</static>
+    <pose>-1.25321 -6.4505 0 0 -0 3.13125</pose>
+    </include>
+    <include>
+    <name>AdjTable_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/AdjTable</uri>
+    <static>true</static>
+    <pose>-1.26728 -5.69226 0 0 0 -0.008733</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitA_01_1</name>
+    <uri>model://aws_robomaker_residential_PortraitA_01</uri>
+    <static>true</static>
+    <pose>-0.706092 -6.93108 1.41115 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitA_01_2</name>
+    <uri>model://aws_robomaker_residential_PortraitA_01</uri>
+    <static>true</static>
+    <pose>-1.97245 -6.9216 1.41115 0 -0 0</pose>
+    </include>
+    <include>
+    <name>Drawer_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Drawer</uri>
+    <static>true</static>
+    <pose>-3.02001 -6.54343 0 0 -0 1.56555</pose>
+    </include>
+    <include>
+    <name>Drawer_3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Drawer</uri>
+    <static>true</static>
+    <pose>-2.99762 -5.94782 0 0 -0 1.56555</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_1</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>-2.43341 -3.38621 1.54508 0 -0 1.57083</pose>
+    </include>
+    <include>
+    <name>ElderLadyPatient</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/ElderLadyPatient</uri>
+    <static>true</static>
+    <pose>-10.9972 0.231354 0.001654 0 -0 0</pose>
+    </include>
+    <include>
+    <name>ElderLadyPatient_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/ElderLadyPatient</uri>
+    <static>true</static>
+    <pose>-10.8133 -13.5925 0.001657 0 -2e-06 -0.025052</pose>
+    </include>
+    <include>
+    <name>CGMClassic_3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>-11.0878 -7.00992 0 0 -0 3.1351</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_Trash_01</name>
+    <uri>model://aws_robomaker_residential_Trash_01</uri>
+    <static>true</static>
+    <pose>0.316178 -6.58235 0.000903 0 -2e-06 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_Trash_01_1</name>
+    <uri>model://aws_robomaker_residential_Trash_01</uri>
+    <static>true</static>
+    <pose>-0.436645 -6.57758 0.000903 -1e-06 -1e-06 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_Trash_01_2</name>
+    <uri>model://aws_robomaker_residential_Trash_01</uri>
+    <static>true</static>
+    <pose>-12.1773 -27.6293 0.000894 -1e-06 -1e-06 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_01</name>
+    <uri>model://aws_robomaker_residential_PortraitE_01</uri>
+    <static>true</static>
+    <pose>-9.06141 -31.9238 1.38136 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_01_1</name>
+    <uri>model://aws_robomaker_residential_PortraitE_01</uri>
+    <static>true</static>
+    <pose>-11.7398 -31.9011 1.38136 0 -0 0</pose>
+    </include>
+    <include>
+    <name>InstrumentCart1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/InstrumentCart1</uri>
+    <static>true</static>
+    <pose>-11.8071 -16.1825 0 0 -0 1.56702</pose>
+    </include>
+    <include>
+    <name>ElderMalePatient</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/ElderMalePatient</uri>
+    <static>true</static>
+    <pose>-11.1165 -17.2377 0.001656 0 3e-06 0</pose>
+    </include>
+    <include>
+    <name>InstrumentCart2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/InstrumentCart2</uri>
+    <static>true</static>
+    <pose>-12.0906 -1.87329 0.051875 0 -0 1.57773</pose>
+    </include>
+    <include>
+    <name>InstrumentCart2_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/InstrumentCart2</uri>
+    <static>true</static>
+    <pose>-11.5231 1.34237 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_Carpet_01</name>
+    <uri>model://aws_robomaker_residential_Carpet_01</uri>
+    <static>true</static>
+    <pose>-10.7338 -29.9243 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>MetalCabinet</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/MetalCabinet</uri>
+    <static>true</static>
+    <pose>-11.1128 11.6546 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>MetalCabinet_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/MetalCabinet</uri>
+    <static>true</static>
+    <pose>-11.1876 4.2888 0 0 -0 3.1387</pose>
+    </include>
+    <include>
+    <name>CGMClassic_4</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>-11.0106 8.9505 -0.008203 -0.035019 -0.000392 3.13388</pose>
+    </include>
+    <include>
+    <name>CGMClassic_5</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>-11.025 7.10335 0 -0.035021 1.8e-05 -3.13762</pose>
+    </include>
+    <include>
+    <name>BedTable</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BedTable</uri>
+    <static>true</static>
+    <pose>-10.4759 1.39442 0.001184 0 -3e-06 0</pose>
+    </include>
+    <include>
+    <name>BedTable_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BedTable</uri>
+    <static>true</static>
+    <pose>-10.5874 -12.5084 0.001189 0 -0 3.11588</pose>
+    </include>
+    <include>
+    <name>BedsideTable</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BedsideTable</uri>
+    <static>true</static>
+    <pose>-12.1499 -2.63111 0.00018 1e-06 -0 -0.00878</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_half_open_01_6</name>
+    <uri>model://aws_robomaker_hospital_curtain_half_open_01</uri>
+    <static>true</static>
+    <pose>-11.0426 0.066126 0 0 -0 1.56614</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_half_open_01_7</name>
+    <uri>model://aws_robomaker_hospital_curtain_half_open_01</uri>
+    <static>true</static>
+    <pose>-11.0309 -3.75145 0 0 -0 1.56614</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_ramp_01</name>
+    <uri>model://aws_robomaker_hospital_ramp_01</uri>
+    <static>true</static>
+    <pose>-1.70996 16.3685 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>AnesthesiaMachine</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/AnesthesiaMachine</uri>
+    <static>true</static>
+    <pose>-1.28478 -21.1127 0 0 0 -3.12971</pose>
+    </include>
+    <include>
+    <name>TrolleyBedPatient</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/TrolleyBedPatient</uri>
+    <static>true</static>
+    <pose>-1.83202 -19.2612 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>Shower</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Shower</uri>
+    <static>true</static>
+    <pose>-1.07422 -16.1332 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>Shower_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Shower</uri>
+    <static>true</static>
+    <pose>0.853327 -16.1492 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>SurgicalTrolley_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/SurgicalTrolley</uri>
+    <static>true</static>
+    <pose>-0.411421 -22.2085 0 0 0 -1.58175</pose>
+    </include>
+    <include>
+    <name>SurgicalTrolley_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/SurgicalTrolley</uri>
+    <static>true</static>
+    <pose>3.11747 -19.6565 0 0 -0 1.57031</pose>
+    </include>
+    <include>
+    <name>SurgicalTrolleyMed</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/SurgicalTrolleyMed</uri>
+    <static>true</static>
+    <pose>0.770804 -19.7749 0 0 0 -1.56798</pose>
+    </include>
+    <include>
+    <name>InstrumentCart1_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/InstrumentCart1</uri>
+    <static>true</static>
+    <pose>-11.8071 -16.1825 0 0 -0 1.56702</pose>
+    </include>
+    <include>
+    <name>InstrumentCart2_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/InstrumentCart2</uri>
+    <static>true</static>
+    <pose>-0.869537 -17.7436 0 0 0 -0.002595</pose>
+    </include>
+    <include>
+    <name>StorageRackCovered</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/StorageRackCovered</uri>
+    <static>true</static>
+    <pose>0.546476 -18.3985 -0 0 -0 1.56584</pose>
+    </include>
+    <include>
+    <name>StorageRack_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/StorageRack</uri>
+    <static>true</static>
+    <pose>-2.69866 -22.4178 -8e-06 0 4e-06 0</pose>
+    </include>
+    <include>
+    <name>KitchenSink</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/KitchenSink</uri>
+    <static>true</static>
+    <pose>3.06236 -11.8809 -0.001614 0 -0 3.1391</pose>
+    </include>
+    <include>
+    <name>KitchenSink_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/KitchenSink</uri>
+    <static>true</static>
+    <pose>-3.09305 -11.8988 -0.001609 0 -0 0</pose>
+    </include>
+    <include>
+    <name>Toilet</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Toilet</uri>
+    <static>true</static>
+    <pose>0.464522 -11.8023 0.005252 0 0.016801 0</pose>
+    </include>
+    <include>
+    <name>Toilet_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Toilet</uri>
+    <static>true</static>
+    <pose>-0.54552 -11.8033 0.000387 0 0 -3.139</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_01</name>
+    <uri>model://aws_robomaker_residential_PortraitD_01</uri>
+    <static>true</static>
+    <pose>-1.14723 -10.143 1.57344 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_01_1</name>
+    <uri>model://aws_robomaker_residential_PortraitD_01</uri>
+    <static>true</static>
+    <pose>1.16956 -10.1327 1.57344 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_01_2</name>
+    <uri>model://aws_robomaker_residential_PortraitD_01</uri>
+    <static>true</static>
+    <pose>1.2703 -12.9084 1.57344 0 0 -3.14134</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_01_3</name>
+    <uri>model://aws_robomaker_residential_PortraitD_01</uri>
+    <static>true</static>
+    <pose>-1.06108 -12.9155 1.57344 0 0 -3.14134</pose>
+    </include>
+    <include>
+    <name>Toilet_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Toilet</uri>
+    <static>true</static>
+    <pose>7.4839 1.42958 0.000387 0 -0 -3.13589</pose>
+    </include>
+    <include>
+    <name>Toilet_3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Toilet</uri>
+    <static>true</static>
+    <pose>-7.01185 1.4183 0.000387 0 0 -3.13589</pose>
+    </include>
+    <include>
+    <name>Toilet_4</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Toilet</uri>
+    <static>true</static>
+    <pose>-7.02851 -12.7728 0.000377 0 0 -3.13589</pose>
+    </include>
+    <include>
+    <name>Toilet_5</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Toilet</uri>
+    <static>true</static>
+    <pose>7.48696 -12.617 0.000386 0 0 -3.13589</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_2</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>7.89294 -13.6155 1.54508 0 0 -1.57619</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_3</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>7.88791 0.445446 1.54508 0 0 -1.57619</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_4</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>-7.92095 0.84255 1.54508 0 -0 1.57083</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_5</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>-7.90937 -13.3417 1.54508 0 -0 1.57083</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_6</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>-12.3841 6.01232 1.54508 0 -0 1.57083</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_7</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>-12.4276 9.98828 1.54508 0 -0 1.57083</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_02</name>
+    <uri>model://aws_robomaker_residential_PortraitE_02</uri>
+    <static>true</static>
+    <pose>-9.08927 9.19494 1.84129 0 0 -1.5625</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_02_1</name>
+    <uri>model://aws_robomaker_residential_PortraitE_02</uri>
+    <static>true</static>
+    <pose>-9.08305 7.04089 1.84129 0 0 -1.5625</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_01_4</name>
+    <uri>model://aws_robomaker_residential_PortraitD_01</uri>
+    <static>true</static>
+    <pose>-9.9148 11.9172 1.40573 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_01_5</name>
+    <uri>model://aws_robomaker_residential_PortraitD_01</uri>
+    <static>true</static>
+    <pose>-10.2134 7.89752 1.40573 0 -0 0</pose>
+    </include>
+    <include>
+    <name>CGMClassic_6</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>10.6166 9.06291 -0.008203 -0.03501 0.000885 -3.11285</pose>
+    </include>
+    <include>
+    <name>CGMClassic_7</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>10.6006 6.90956 -0.008203 -0.035003 0.001133 -3.10576</pose>
+    </include>
+    <include>
+    <name>MetalCabinet_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/MetalCabinet</uri>
+    <static>true</static>
+    <pose>11.1356 4.33826 0 0 -0 3.1387</pose>
+    </include>
+    <include>
+    <name>MetalCabinet_3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/MetalCabinet</uri>
+    <static>true</static>
+    <pose>11.1318 11.6838 0 0 0 -0.023701</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_9</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>9.06517 6.78742 1.54508 0 -0 1.57083</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_02_10</name>
+    <uri>model://aws_robomaker_residential_PortraitD_02</uri>
+    <static>true</static>
+    <pose>9.06517 9.05858 1.54508 0 -0 1.57083</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_02_2</name>
+    <uri>model://aws_robomaker_residential_PortraitE_02</uri>
+    <static>true</static>
+    <pose>12.3972 6.98849 1.84129 0 0 -1.5625</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_02_3</name>
+    <uri>model://aws_robomaker_residential_PortraitE_02</uri>
+    <static>true</static>
+    <pose>12.3972 8.87466 1.84129 0 0 -1.5625</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_02_4</name>
+    <uri>model://aws_robomaker_residential_PortraitE_02</uri>
+    <static>true</static>
+    <pose>-3.4385 -6.00525 1.84129 0 -0 1.56777</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_01_6</name>
+    <uri>model://aws_robomaker_residential_PortraitD_01</uri>
+    <static>true</static>
+    <pose>10.596 7.88308 1.40573 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitD_01_7</name>
+    <uri>model://aws_robomaker_residential_PortraitD_01</uri>
+    <static>true</static>
+    <pose>9.98896 11.914 1.40573 0 -0 0</pose>
+    </include>
+    <include>
+    <name>ParkingTrolleyMin</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/ParkingTrolleyMin</uri>
+    <static>true</static>
+    <pose>0.715846 -17.1496 -0.000121 -1e-06 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_open_01</name>
+    <uri>model://aws_robomaker_hospital_curtain_open_01</uri>
+    <static>true</static>
+    <pose>11.0051 -6.91002 0 0 0 -1.58737</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_closed_01_1</name>
+    <uri>model://aws_robomaker_hospital_curtain_closed_01</uri>
+    <static>true</static>
+    <pose>11.0303 -3.70124 0 0 0 -1.58306</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_closed_01_2</name>
+    <uri>model://aws_robomaker_hospital_curtain_closed_01</uri>
+    <static>true</static>
+    <pose>10.9586 0.159483 0 0 0 -1.58306</pose>
+    </include>
+    <include>
+    <name>MalePatientBed</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/ElderMalePatient</uri>
+    <static>true</static>
+    <pose>11.3771 -7.38891 0.001658 -1e-06 1e-06 3.11598</pose>
+    </include>
+    <include>
+    <name>CGMClassic_8</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/CGMClassic</uri>
+    <static>true</static>
+    <pose>11.3613 -21.8867 0 0 0 -3.12292</pose>
+    </include>
+    <include>
+    <name>StorageRackCoverOpen</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/StorageRackCoverOpen</uri>
+    <static>true</static>
+    <pose>9.15016 3.44263 -9e-06 1e-06 2e-06 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_warehouse_ClutteringC_01</name>
+    <uri>model://aws_robomaker_warehouse_ClutteringC_01</uri>
+    <static>true</static>
+    <pose>-10.5553 15.0297 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_warehouse_ClutteringA_01</name>
+    <uri>model://aws_robomaker_warehouse_ClutteringA_01</uri>
+    <static>true</static>
+    <pose>10.8233 15.2153 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>StorageRack_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/StorageRack</uri>
+    <static>true</static>
+    <pose>-10.1178 -10.4694 -0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>StorageRack_3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/StorageRack</uri>
+    <static>true</static>
+    <pose>-9.91557 3.5644 -9e-06 1e-06 1e-06 -0.000273</pose>
+    </include>
+    <include>
+    <name>StorageRackCovered_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/StorageRackCovered</uri>
+    <static>true</static>
+    <pose>10.294 -10.577 -7e-06 3e-06 -0 3.13389</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_closed_01_3</name>
+    <uri>model://aws_robomaker_hospital_curtain_closed_01</uri>
+    <static>true</static>
+    <pose>10.9819 -26.2149 0 0 0 -1.58306</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_closed_01_4</name>
+    <uri>model://aws_robomaker_hospital_curtain_closed_01</uri>
+    <static>true</static>
+    <pose>1.31506 -30.5771 0 0 -0 3.1401</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_closed_01_5</name>
+    <uri>model://aws_robomaker_hospital_curtain_closed_01</uri>
+    <static>true</static>
+    <pose>5.49659 -30.5364 0 0 -0 3.1401</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_hospital_curtain_closed_01_6</name>
+    <uri>model://aws_robomaker_hospital_curtain_closed_01</uri>
+    <static>true</static>
+    <pose>9.80048 -30.5918 0 0 -0 3.1401</pose>
+    </include>
+    <include>
+    <name>InstrumentCart1_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/InstrumentCart1</uri>
+    <static>true</static>
+    <pose>-1.83539 -17.5879 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>ParkingTrolleyMax</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/ParkingTrolleyMax</uri>
+    <static>true</static>
+    <pose>7.71054 -25.1326 -0.000121 1e-06 -0 -1.59536</pose>
+    </include>
+    <include>
+    <name>ElderMalePatient_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/ElderMalePatient</uri>
+    <static>true</static>
+    <pose>-11.2471 -3.5813 0.001656 0 -0 -0.054192</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_02_5</name>
+    <uri>model://aws_robomaker_residential_PortraitE_02</uri>
+    <static>true</static>
+    <pose>-3.74211 14.8725 1.54379 0 -0 0</pose>
+    </include>
+    <include>
+    <name>aws_robomaker_residential_PortraitE_01_2</name>
+    <uri>model://aws_robomaker_residential_PortraitE_01</uri>
+    <static>true</static>
+    <pose>3.85701 14.8779 1.69742 0 -0 0</pose>
+    </include>
+    <include>
+    <name>Chair_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Chair</uri>
+    <static>true</static>
+    <pose>-1.37633 -0.795802 0 -1e-06 0 -1.54998</pose>
+    </include>
+    <include>
+    <name>XRayMachine</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/XRayMachine</uri>
+    <static>true</static>
+    <pose>1.79424 -21.3329 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>IVStand</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/IVStand</uri>
+    <static>true</static>
+    <pose>-11.0966 -16.4963 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>BloodPressureMonitor</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BloodPressureMonitor</uri>
+    <static>true</static>
+    <pose>-9.96258 -11.9361 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>IVStand_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/IVStand</uri>
+    <static>true</static>
+    <pose>-2.30593 -20.2447 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>BMWCart</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BMWCart</uri>
+    <static>true</static>
+    <pose>-10.931 -1.9483 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>BPCart</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BPCart</uri>
+    <static>true</static>
+    <pose>-10.1788 11.173 0.003446 1e-06 -0 0.003096</pose>
+    </include>
+    <include>
+    <name>BPCart_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BPCart</uri>
+    <static>true</static>
+    <pose>12.0072 4.64765 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>BPCart_2</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BPCart</uri>
+    <static>true</static>
+    <pose>-11.7236 11.4294 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>BPCart_3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/BPCart</uri>
+    <static>true</static>
+    <pose>-11.4703 5.05999 0.003446 1e-06 -0 0.003096</pose>
+    </include>
+    <include>
+    <name>VendingMachine</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/VendingMachine</uri>
+    <static>true</static>
+    <pose>-8.45694 9.63064 0 0 -0 0</pose>
+    </include>
+    <include>
+    <name>VendingMachine_1</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/VendingMachine</uri>
+    <static>true</static>
+    <pose>8.35378 9.64852 -3e-06 -6e-06 0 0</pose>
+    </include>
+    <include>
+    <name>Chair_3</name>
+    <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Chair</uri>
+    <static>true</static>
+    <pose>1.30985 -0.727185 -0 0 0 -1.53446</pose>
+    </include>
+
+  <!-- Ceiling last: untick `hospital_ceiling` in the entity tree to see inside
+       from above. -->
+    <include>
+    <name>aws_robomaker_hospital_floor_01_ceiling</name>
+    <uri>model://aws_robomaker_hospital_floor_01_ceiling</uri>
+    <static>true</static>
+    <pose>0.016552 0.050728 0 0 -0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/FemaleVisitorSit</uri>
+      <name>FemaleVisitorSit</name>
+      <pose>-7.0 5.6 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/VisitorKidSit</uri>
+      <name>VisitorKidSit</name>
+      <pose>-7.0 7.5 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/MaleVisitorSit</uri>
+      <name>MaleVisitorSit</name>
+      <pose>-7.0 9.4 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/FemaleVisitorSit</uri>
+      <name>FemaleVisitorSit_1</name>
+      <pose>6.0 5.6 0 0 0 4.7124</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/MaleVisitorSit</uri>
+      <name>MaleVisitorSit_1</name>
+      <pose>6.0 7.5 0 0 0 4.7124</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PatientFSit</uri>
+      <name>ReceptionStaff_0</name>
+      <pose>-1.05 4.49 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PatientFSit</uri>
+      <name>ReceptionStaff_1</name>
+      <pose>1.07 4.51 0 0 0 1.5708</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PatientFSit</uri>
+      <name>DeskStaff_0</name>
+      <pose>1.2 -6.39 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PatientFSit</uri>
+      <name>DeskStaff_1</name>
+      <pose>-1.25 -6.45 0 0 0 1.5708</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PatientFSit</uri>
+      <name>LoungePatient_0</name>
+      <pose>-11.08 -30.9 0 0 0 1.5691</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PatientFSit</uri>
+      <name>LoungePatient_1</name>
+      <pose>-10.82 -28.67 0 0 0 -1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/PatientFSit</uri>
+      <name>LoungePatient_2</name>
+      <pose>-9.74 -28.65 0 0 0 -1.5708</pose>
+    </include>
+
+    <!-- Two "quiet please" posters, one on each side wall of the lobby. The x/y
+         is the wall surface and the yaw is the wall's inward normal; the model
+         carries its own standoff. z is the middle of the print. -->
+    <include>
+      <uri>model://no_talk_poster</uri>
+      <name>no_talk_poster_lobby_east</name>
+      <pose>8.94 7.95 1.60 0 0 3.1416</pose>
+    </include>
+    <include>
+      <uri>model://no_talk_poster</uri>
+      <name>no_talk_poster_lobby_west</name>
+      <pose>-8.94 7.525 1.60 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Scrubs</uri>
+      <name>LiftWaiter</name>
+      <pose>-1.51 17.90 0.19 0 0 1.5708</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/TrolleyBed</uri>
+      <name>BayBed_3</name>
+      <pose>10.98 -26.21 0 0 0 3.1416</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/TrolleyBed</uri>
+      <name>BayBed_10</name>
+      <pose>10.96 0.16 0 0 0 3.1416</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/TrolleyBed</uri>
+      <name>BayBed_0</name>
+      <pose>9.80 -30.59 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/TrolleyBed</uri>
+      <name>BayBed_1</name>
+      <pose>1.32 -30.58 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/TrolleyBed</uri>
+      <name>BayBed_2</name>
+      <pose>5.50 -30.54 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/TrolleyBed</uri>
+      <name>BayBed_9</name>
+      <pose>11.03 -3.70 0 0 0 3.1416</pose>
+    </include>
+
+  <!-- People, and all of them stand still. Everything here is an <actor>,
+       because only actors animate a skeleton. Actors carry no collision, but
+       the LIDAR is a rendering sensor and does see them. -->
+    <actor name="Scrubs">
+      <skin><filename>https://fuel.gazebosim.org/1.0/mingfei/models/actor/1/files/meshes/talk_b.dae</filename><scale>1.0</scale></skin>
+      <animation name="talk_b"><filename>https://fuel.gazebosim.org/1.0/mingfei/models/actor/1/files/meshes/talk_b.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="talk_b">
+          <waypoint><time>0</time><pose>-9.62 -12.51 0.859 0 0 -3.1235</pose></waypoint>
+          <waypoint><time>60</time><pose>-9.62 -12.51 0.859 0 0 -3.1235</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="Scrubs_3">
+      <skin><filename>https://fuel.gazebosim.org/1.0/mingfei/models/actor/1/files/meshes/talk_b.dae</filename><scale>1.0</scale></skin>
+      <animation name="talk_b"><filename>https://fuel.gazebosim.org/1.0/mingfei/models/actor/1/files/meshes/talk_b.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="talk_b">
+          <waypoint><time>0</time><pose>-0.94 -18.23 0.859 0 0 1.6257</pose></waypoint>
+          <waypoint><time>60</time><pose>-0.94 -18.23 0.859 0 0 1.6257</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="Scrubs_5">
+      <skin><filename>https://fuel.gazebosim.org/1.0/mingfei/models/actor/1/files/meshes/talk_b.dae</filename><scale>1.0</scale></skin>
+      <animation name="talk_b"><filename>https://fuel.gazebosim.org/1.0/mingfei/models/actor/1/files/meshes/talk_b.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="talk_b">
+          <waypoint><time>0</time><pose>-1.29 -20.41 0.859 0 0 -1.5107</pose></waypoint>
+          <waypoint><time>60</time><pose>-1.29 -20.41 0.859 0 0 -1.5107</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+  <!-- A wheelchair being pushed up the east wing aisle, and the attendant
+       pushing it. The chair is an <actor> too, so it can follow a trajectory. -->
+    <actor name="wheelchair_pushed">
+      <skin><filename>https://fuel.gazebosim.org/1.0/openrobotics/models/patientwheelchair/4/files/meshes/PatientWheelChair.obj</filename><scale>1.0</scale></skin>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="__default__">
+          <waypoint><time>0.00</time><pose>4.350 -23.000 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>16.00</time><pose>4.350 -8.600 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>16.33</time><pose>4.350 -8.600 0 0 0 2.0944</pose></waypoint>
+          <waypoint><time>16.67</time><pose>4.350 -8.600 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>17.00</time><pose>4.350 -8.600 0 0 0 3.1416</pose></waypoint>
+          <waypoint><time>17.33</time><pose>4.350 -8.600 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>17.67</time><pose>4.350 -8.600 0 0 0 4.1888</pose></waypoint>
+          <waypoint><time>18.00</time><pose>4.350 -8.600 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>34.00</time><pose>4.350 -23.000 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>34.33</time><pose>4.350 -23.000 0 0 0 4.1888</pose></waypoint>
+          <waypoint><time>34.67</time><pose>4.350 -23.000 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>35.00</time><pose>4.350 -23.000 0 0 0 3.1416</pose></waypoint>
+          <waypoint><time>35.33</time><pose>4.350 -23.000 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>35.67</time><pose>4.350 -23.000 0 0 0 2.0944</pose></waypoint>
+          <waypoint><time>36.00</time><pose>4.350 -23.000 0 0 0 1.5708</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="wheelchair_attendant">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/opscrubswalk/1/files/meshes/OpScrubsWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/opscrubswalk/1/files/meshes/OpScrubsWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>4.350 -23.850 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>16.00</time><pose>4.350 -9.450 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>16.33</time><pose>4.775 -9.336 0 0 0 2.0944</pose></waypoint>
+          <waypoint><time>16.67</time><pose>5.086 -9.025 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>17.00</time><pose>5.200 -8.600 0 0 0 3.1416</pose></waypoint>
+          <waypoint><time>17.33</time><pose>5.086 -8.175 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>17.67</time><pose>4.775 -7.864 0 0 0 4.1888</pose></waypoint>
+          <waypoint><time>18.00</time><pose>4.350 -7.750 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>34.00</time><pose>4.350 -22.150 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>34.33</time><pose>4.775 -22.264 0 0 0 4.1888</pose></waypoint>
+          <waypoint><time>34.67</time><pose>5.086 -22.575 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>35.00</time><pose>5.200 -23.000 0 0 0 3.1416</pose></waypoint>
+          <waypoint><time>35.33</time><pose>5.086 -23.425 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>35.67</time><pose>4.775 -23.736 0 0 0 2.0944</pose></waypoint>
+          <waypoint><time>36.00</time><pose>4.350 -23.850 0 0 0 1.5708</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+  <!-- Four people walking the east corridor, two down each side. Each is a
+       rigged skin with a walk cycle and interpolate_x true. -->
+
+    <actor name="walker_doctor">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/doctorfemalewalk/1/files/meshes/DoctorFemaleWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/doctorfemalewalk/1/files/meshes/DoctorFemaleWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>3.830 -8.000 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.64</time><pose>3.830 -6.000 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.97</time><pose>3.830 -6.000 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>4.30</time><pose>3.830 -6.000 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>4.64</time><pose>3.830 -6.000 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.27</time><pose>3.830 -8.000 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.61</time><pose>3.830 -8.000 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>8.94</time><pose>3.830 -8.000 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>9.27</time><pose>3.830 -8.000 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="walker_scrubs">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/opscrubswalk/1/files/meshes/OpScrubsWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/opscrubswalk/1/files/meshes/OpScrubsWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>6.120 -4.700 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.64</time><pose>6.120 -2.700 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.97</time><pose>6.120 -2.700 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>4.30</time><pose>6.120 -2.700 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>4.64</time><pose>6.120 -2.700 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.27</time><pose>6.120 -4.700 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.61</time><pose>6.120 -4.700 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>8.94</time><pose>6.120 -4.700 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>9.27</time><pose>6.120 -4.700 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="walker_nurse">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/nursefemalewalk/1/files/meshes/NurseFemaleWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/nursefemalewalk/1/files/meshes/NurseFemaleWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>3.830 -1.400 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.64</time><pose>3.830 0.600 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.97</time><pose>3.830 0.600 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>4.30</time><pose>3.830 0.600 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>4.64</time><pose>3.830 0.600 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.27</time><pose>3.830 -1.400 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.61</time><pose>3.830 -1.400 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>8.94</time><pose>3.830 -1.400 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>9.27</time><pose>3.830 -1.400 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="walker_visitor">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/visitorkidwalk/1/files/meshes/VisitorKidWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/visitorkidwalk/1/files/meshes/VisitorKidWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>6.120 1.900 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.64</time><pose>6.120 3.900 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.97</time><pose>6.120 3.900 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>4.30</time><pose>6.120 3.900 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>4.64</time><pose>6.120 3.900 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.27</time><pose>6.120 1.900 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.61</time><pose>6.120 1.900 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>8.94</time><pose>6.120 1.900 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>9.27</time><pose>6.120 1.900 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+  <!-- The same traffic again in the west corridor: four people walking, and a
+       second wheelchair with its attendant. -->
+
+    <actor name="walker2_doctor">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/doctorfemalewalk/1/files/meshes/DoctorFemaleWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/doctorfemalewalk/1/files/meshes/DoctorFemaleWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>-6.220 -8.000 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.64</time><pose>-6.220 -6.000 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.97</time><pose>-6.220 -6.000 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>4.30</time><pose>-6.220 -6.000 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>4.64</time><pose>-6.220 -6.000 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.27</time><pose>-6.220 -8.000 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.61</time><pose>-6.220 -8.000 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>8.94</time><pose>-6.220 -8.000 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>9.27</time><pose>-6.220 -8.000 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="walker2_scrubs">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/opscrubswalk/1/files/meshes/OpScrubsWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/opscrubswalk/1/files/meshes/OpScrubsWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>-3.880 -4.700 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.64</time><pose>-3.880 -2.700 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.97</time><pose>-3.880 -2.700 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>4.30</time><pose>-3.880 -2.700 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>4.64</time><pose>-3.880 -2.700 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.27</time><pose>-3.880 -4.700 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.61</time><pose>-3.880 -4.700 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>8.94</time><pose>-3.880 -4.700 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>9.27</time><pose>-3.880 -4.700 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="walker2_nurse">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/nursefemalewalk/1/files/meshes/NurseFemaleWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/nursefemalewalk/1/files/meshes/NurseFemaleWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>-6.220 -1.400 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.64</time><pose>-6.220 0.600 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.97</time><pose>-6.220 0.600 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>4.30</time><pose>-6.220 0.600 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>4.64</time><pose>-6.220 0.600 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.27</time><pose>-6.220 -1.400 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.61</time><pose>-6.220 -1.400 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>8.94</time><pose>-6.220 -1.400 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>9.27</time><pose>-6.220 -1.400 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="walker2_visitor">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/visitorkidwalk/1/files/meshes/VisitorKidWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/visitorkidwalk/1/files/meshes/VisitorKidWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>-3.880 1.900 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.64</time><pose>-3.880 3.900 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>3.97</time><pose>-3.880 3.900 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>4.30</time><pose>-3.880 3.900 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>4.64</time><pose>-3.880 3.900 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.27</time><pose>-3.880 1.900 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>8.61</time><pose>-3.880 1.900 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>8.94</time><pose>-3.880 1.900 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>9.27</time><pose>-3.880 1.900 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="wheelchair2_pushed">
+      <skin><filename>https://fuel.gazebosim.org/1.0/openrobotics/models/patientwheelchair/4/files/meshes/PatientWheelChair.obj</filename><scale>1.0</scale></skin>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="__default__">
+          <waypoint><time>0.00</time><pose>-5.500 -22.000 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>13.33</time><pose>-5.500 -10.000 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>13.67</time><pose>-5.500 -10.000 0 0 0 2.0944</pose></waypoint>
+          <waypoint><time>14.00</time><pose>-5.500 -10.000 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>14.33</time><pose>-5.500 -10.000 0 0 0 3.1416</pose></waypoint>
+          <waypoint><time>14.67</time><pose>-5.500 -10.000 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>15.00</time><pose>-5.500 -10.000 0 0 0 4.1888</pose></waypoint>
+          <waypoint><time>15.33</time><pose>-5.500 -10.000 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>28.67</time><pose>-5.500 -22.000 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>29.00</time><pose>-5.500 -22.000 0 0 0 5.2360</pose></waypoint>
+          <waypoint><time>29.33</time><pose>-5.500 -22.000 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>29.67</time><pose>-5.500 -22.000 0 0 0 6.2832</pose></waypoint>
+          <waypoint><time>30.00</time><pose>-5.500 -22.000 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>30.33</time><pose>-5.500 -22.000 0 0 0 7.3304</pose></waypoint>
+          <waypoint><time>30.67</time><pose>-5.500 -22.000 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="wheelchair2_attendant">
+      <skin><filename>https://fuel.gazebosim.org/1.0/luca/models/opscrubswalk/1/files/meshes/OpScrubsWalk.dae</filename><scale>1.0</scale></skin>
+      <animation name="walk"><filename>https://fuel.gazebosim.org/1.0/luca/models/opscrubswalk/1/files/meshes/OpScrubsWalk.dae</filename><scale>1.0</scale>
+        <interpolate_x>true</interpolate_x></animation>
+      <script><loop>true</loop><auto_start>true</auto_start>
+        <trajectory id="0" type="walk">
+          <waypoint><time>0.00</time><pose>-5.500 -22.850 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>13.33</time><pose>-5.500 -10.850 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>13.67</time><pose>-5.075 -10.736 0 0 0 2.0944</pose></waypoint>
+          <waypoint><time>14.00</time><pose>-4.764 -10.425 0 0 0 2.6180</pose></waypoint>
+          <waypoint><time>14.33</time><pose>-4.650 -10.000 0 0 0 3.1416</pose></waypoint>
+          <waypoint><time>14.67</time><pose>-4.764 -9.575 0 0 0 3.6652</pose></waypoint>
+          <waypoint><time>15.00</time><pose>-5.075 -9.264 0 0 0 4.1888</pose></waypoint>
+          <waypoint><time>15.33</time><pose>-5.500 -9.150 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>28.67</time><pose>-5.500 -21.150 0 0 0 4.7124</pose></waypoint>
+          <waypoint><time>29.00</time><pose>-5.075 -21.264 0 0 0 5.2360</pose></waypoint>
+          <waypoint><time>29.33</time><pose>-4.764 -21.575 0 0 0 5.7596</pose></waypoint>
+          <waypoint><time>29.67</time><pose>-4.650 -22.000 0 0 0 6.2832</pose></waypoint>
+          <waypoint><time>30.00</time><pose>-4.764 -22.425 0 0 0 6.8068</pose></waypoint>
+          <waypoint><time>30.33</time><pose>-5.075 -22.736 0 0 0 7.3304</pose></waypoint>
+          <waypoint><time>30.67</time><pose>-5.500 -22.850 0 0 0 7.8540</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+  </world>
+</sdf>

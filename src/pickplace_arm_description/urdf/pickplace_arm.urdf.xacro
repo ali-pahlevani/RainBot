@@ -5,56 +5,33 @@
   <!-- Mobile manipulator: Clearpath Husky A200 base + Franka FR3 arm +      -->
   <!-- Franka Hand gripper.                                                  -->
   <!--                                                                       -->
-  <!-- Base and arm geometry is VENDORED into this package, under            -->
-  <!-- urdf/vendor/ and meshes/. It used to be referenced via $(find ...) out -->
-  <!-- of the upstream packages, but those were nested git checkouts that     -->
-  <!-- could not be pushed with this project, so the subset this robot        -->
-  <!-- actually uses was copied in and the URIs repointed. Provenance:        -->
+  <!-- Base and arm geometry is vendored under urdf/vendor/ and meshes/:      -->
   <!--   * clearpath_platform_description (humble)  -> Husky A200            -->
   <!--   * franka_description 1.6.1                 -> FR3 arm + Franka Hand -->
   <!-- Upstream licences are kept beside the meshes as LICENSE.<package>.     -->
-  <!--                                                                       -->
-  <!-- NOTE on the Husky variant: the A300 does NOT exist on clearpath_common -->
-  <!-- humble (it is jazzy-only). A200 is the humble Husky, and is what this  -->
-  <!-- file uses.                                                            -->
-  <!--                                                                       -->
-  <!-- NOTE on the Franka wrapper: clearpath_manipulators_description's       -->
-  <!-- franka.urdf.xacro is NOT used. It calls franka_description's           -->
-  <!-- `franka_arm` macro with `arm_id=` and no `accelerometer_config=`,      -->
-  <!-- which only matches franka_description <= 1.0.2 (`arm_id` was renamed   -->
-  <!-- to `robot_type` in 1.5.0; `accelerometer_config` became required in    -->
-  <!-- 1.1.0). Against the 1.6.1 checkout here it fails at parse time. Since  -->
-  <!-- Clearpath hardcodes no mount pose either (its `franka` macro takes     -->
-  <!-- `parent_link` + an `*origin` block filled in per-robot from            -->
-  <!-- robot.yaml via clearpath_config), the wrapper offered no proven        -->
-  <!-- values to reuse -only a version constraint. So this file calls       -->
-  <!-- franka_description's own `franka_robot` macro directly, with the       -->
-  <!-- parameter names 1.6.1 actually expects.                               -->
   <!-- ==================================================================== -->
 
-  <!-- When true, pull in the Gazebo Harmonic ros2_control system + sensors.
-       Left false for the MoveIt/mock-hardware description so we don't end up
-       with two ros2_control systems. gazebo.launch.py sets this to true. -->
+  <!-- Pull in the Gazebo Harmonic ros2_control system + sensors. Left false for
+       the MoveIt/mock-hardware description; gazebo.launch.py sets it true. -->
   <xacro:arg name="use_gazebo" default="false"/>
 
-  <!-- ============ Clearpath A200 args ============
-       These are declared HERE, before the A200 include, purely to pre-empt the
-       defaults a200.urdf.xacro declares for them. xacro evaluates <xacro:arg>
-       defaults EAGERLY, and Clearpath's default for `gazebo_controllers` is
-       "$(find clearpath_control)/config/a200/control.yaml" -so simply
-       including the A200 would hard-fail with PackageNotFoundError unless
-       clearpath_control (a control stack we deliberately do not pull in) is
-       built. Declaring the arg first makes the include self-contained.
-
-       is_sim / use_platform_controllers stay false so the A200 contributes
-       GEOMETRY ONLY: no Clearpath ros2_control block and no
-       ign_ros2_control plugin, both of which would collide with our own
-       gz_ros2_control system in pickplace_arm.gazebo.xacro. -->
+  <!-- ============ Clearpath A200 args ============ -->
   <xacro:arg name="gazebo_controllers" default="unused"/>
   <xacro:arg name="serial_port" default="unused"/>
   <xacro:arg name="namespace" default=""/>
   <xacro:arg name="is_sim" default="false"/>
   <xacro:arg name="use_platform_controllers" default="false"/>
+
+  <!-- Multi-robot. Empty by default, which reproduces the single-robot
+       description exactly. Set it (robot_ns:=r1) to namespace topics and frames. -->
+  <xacro:arg name="robot_ns" default=""/>
+  <!-- Render the wrist RGB-D camera at all. The hospital fleet turns it off:
+       nothing in that mission reads it. -->
+  <xacro:arg name="wrist_camera" default="true"/>
+  <xacro:property name="robot_ns" value="$(arg robot_ns)"/>
+  <!-- '' or '/r1' for topic names; '' or 'r1/' for frame ids. -->
+  <xacro:property name="ns_topic" value="${'' if robot_ns == '' else '/' + robot_ns}"/>
+  <xacro:property name="ns_frame" value="${'' if robot_ns == '' else robot_ns + '/'}"/>
 
   <xacro:property name="PI" value="3.14159265359"/>
 
@@ -76,52 +53,13 @@
   <!-- ==================================================================== -->
   <!-- Husky A200 base                                                       -->
   <!-- ==================================================================== -->
-  <!-- Provides: base_link (the kinematic ROOT, as before, so MoveIt's
-       world->base_link virtual joint still works), base_footprint,
-       top_chassis_link, inertial_link, the four wheels
-       (front/rear _left/_right _wheel + _wheel_joint -names that happen to
-       match our existing diff_drive_controller config exactly), and the
-       mount frames default_mount / front_bumper_mount / rear_bumper_mount.
-
-       Geometry that matters downstream (all in base_link frame):
-         chassis      0.9874 x 0.5709 x 0.2475, top face at z ~ 0.2475
-         base_footprint  z = -0.13228  (so base_link is 0.13228 m off the ground)
-         wheels       x +/-0.256, y +/-0.2775, radius 0.1651, track 0.555
-         default_mount   z = 0.224 -->
+  <!-- Provides base_link (the kinematic root, so MoveIt's world->base_link
+       virtual joint still works), base_footprint, top_chassis_link,
+       inertial_link and the four wheels. -->
   <xacro:include filename="$(find pickplace_arm_description)/urdf/vendor/a200/a200.urdf.xacro"/>
   <xacro:include filename="$(find pickplace_arm_description)/urdf/vendor/a200/attachments/top_plate.urdf.xacro"/>
 
-  <!-- ============ Wheel visual override ============
-       WHY THIS EXISTS: Clearpath's wheel.dae is a 7 inch-radius (0.1778 m)
-       tyre, but every other number in the A200 says the wheel is 6.5 inch
-       (0.1651 m) - the collision cylinder (`wheel_radius`), the controller's
-       `wheel_diameter` 0.3302, and `wheel_vertical_offset` 0.03282, which is
-       what puts base_footprint exactly 0.1651 under the axle. Physics rests the
-       COLLISION cylinder on the floor, so the 12.7 mm-larger visual mesh sank
-       that far into the ground on all four wheels.
-
-       Scaling the mesh by 0.1651/0.1778 = 0.9285714 in its two RADIAL axes
-       (x and z; the mesh's y is the axle, and already spans exactly the 0.1143
-       `wheel_length`) makes the rendered tyre agree with the cylinder it
-       actually rolls on. Nothing kinematic changes - the collision, the joint
-       origins and base_footprint are untouched, so GROUND_Z (-0.13228) and the
-       odometry stay exactly as they were.
-
-       WHY IT IS HERE AND NOT IN wheel.urdf.xacro: originally because
-       clearpath_common was a nested git checkout whose edits would have been
-       lost on any re-clone. That package is gone now and wheel.urdf.xacro is
-       vendored under urdf/vendor/, so the fix COULD be applied there - it is
-       deliberately not, so the vendored files stay a faithful copy of upstream
-       apart from mechanical path rewrites. Anything this project changes about
-       the A200 lives here, where it is visible next to the reasoning.
-       Redefining the macro after the include but BEFORE the <xacro:a200> call
-       is what makes xacro resolve a200_wheel to THIS definition.
-
-       The body below mirrors Clearpath's macro exactly apart from the mesh
-       scale. The two dimensions are inlined as literals rather than read from
-       ${wheel_radius}/${wheel_length}, because those properties are declared
-       inside the `a200` macro and are not in scope for a macro defined out
-       here. -->
+  <!-- ============ Wheel visual override ============ -->
   <xacro:macro name="a200_wheel" params="wheel_prefix *joint_pose">
     <link name="${wheel_prefix}_wheel">
       <inertial>
@@ -152,11 +90,8 @@
 
   <xacro:a200 wheel="default"/>
 
-  <!-- Standard user-rail top plate on the A200's default_mount. This is what
-       carries the arm. It adds:
-         top_plate_user_rail_link -> top_plate_link -> top_plate_default_mount
-       putting top_plate_default_mount at base_link (0.07987, 0, 0.25139),
-       i.e. 0.38367 m above the ground -the plate's upper surface. -->
+  <!-- Standard user-rail top plate on the A200's default_mount, which carries
+       the arm. Puts top_plate_default_mount at base_link (0.07987, 0, 0.25139). -->
   <xacro:top_plate name="top_plate" model="default" parent_link="default_mount">
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </xacro:top_plate>
@@ -164,33 +99,8 @@
   <!-- ==================================================================== -->
   <!-- Franka FR3 arm + Franka Hand                                          -->
   <!-- ==================================================================== -->
-  <!-- franka_robot builds the arm AND (hand=true, ee_id=franka_hand) the
-       gripper in one call. Produced names, all prefixed `fr3_` because
-       arm_prefix='' and no_prefix=false give prefix = arm_prefix+robot_type+'_':
-         links  fr3_link0..fr3_link8, fr3_hand, fr3_hand_tcp,
-                fr3_leftfinger, fr3_rightfinger
-         joints fr3_joint1..fr3_joint7 (revolute), fr3_joint8 (fixed),
-                fr3_hand_joint (fixed), fr3_finger_joint1 (prismatic),
-                fr3_finger_joint2 (prismatic, MIMICS finger_joint1)
-
-       Parameter choices:
-         connected_to=""       -> suppresses franka's own parent joint so we
-                                  can add our own mount joint below. The macro
-                                  guards it with <unless value="${not
-                                  connected_to}">, so an empty string means
-                                  "no joint".
-         gazebo="false"        -> skips franka's <transmission> tags and its
-                                  ign_ros2_control plugin. We drive the arm
-                                  through our own gz_ros2_control block in
-                                  pickplace_arm.gazebo.xacro instead. Links
-                                  still get full visual (.dae) + collision
-                                  (.stl) meshes and yaml inertials.
-         accelerometer_config="none" -> no accelerometer frames (fr3 ships an
-                                  accelerometers.yaml, but nothing here reads
-                                  those frames).
-         with_sc="false"       -> no coarse self-collision capsule sub-links;
-                                  MoveIt uses the real collision meshes.
-         ros2_control="false"  -> ditto, our own block owns the interfaces. -->
+  <!-- franka_robot builds the arm and (hand=true, ee_id=franka_hand) the gripper
+       in one call. Everything it produces is prefixed `fr3_`. -->
   <xacro:include filename="$(find pickplace_arm_description)/urdf/vendor/franka/robots/common/franka_robot.xacro"/>
 
   <xacro:franka_robot
@@ -214,20 +124,7 @@
     ros2_control="false"
     connected_to=""/>
 
-  <!-- ============ Arm mount joint ============
-       Bolts the FR3 flat onto the Husky's top plate. Zero offset: the plate's
-       own default_mount frame already sits on the plate's upper surface, and
-       fr3_link0's origin is at the bottom face of the arm base, so the arm
-       stands exactly on the plate -neither floating nor sunk into it.
-
-       No rotation: the FR3's +x (its "forward" at joint1=0) is aligned with
-       the Husky's +x, so the arm faces the same way the base drives.
-
-       This origin is OURS, not Clearpath's. Clearpath hardcodes no Franka
-       mount pose anywhere (see the header note); its generator injects one
-       per-robot from robot.yaml. Mounting on top_plate_default_mount is the
-       canonical Clearpath top-plate attachment point, so this is the same
-       frame their tooling would target. -->
+  <!-- ============ Arm mount joint ============ -->
   <joint name="fr3_mount_joint" type="fixed">
     <parent link="top_plate_default_mount"/>
     <child link="fr3_link0"/>
@@ -238,52 +135,16 @@
   <!-- Sensors                                                               -->
   <!-- ==================================================================== -->
 
-  <!-- ============ 2D LIDAR (SLAM / Nav2) ============
-       On the front of the top plate. The 270 deg forward arc configured in
-       pickplace_arm.gazebo.xacro excludes a 90 deg wedge pointing straight
-       BACK, which is exactly where the arm stands: the FR3 base is at
-       x=0.07987 and the LIDAR at x=0.40687, so the arm sits 0.327 m directly
-       behind the sensor and subtends only ~+/-15 deg there -comfortably
-       inside the excluded 135..225 deg wedge, so the scan never hits it.
-
-       HEIGHT CHANGED: this sits 0.447 m above the ground, against 0.11 m on
-       the old placeholder chassis. It now scans well above low obstacles,
-       so any ground-level box that SLAM/Nav2 used to see in the scan will no
-       longer appear. -->
-  <!-- Modelled as a SICK TiM5xx (TiM571): a real 270 deg, single-plane scanner
-       whose datasheet geometry is what the sensor config above already
-       describes. Mesh vendored from sick_scan_xd into meshes/sensors/.
-
-       SICK's own URDF convention (sick_scan_xd/urdf/sick_scan.urdf.xacro):
-       the mesh is in METRES and its origin IS the laser centre, placed on the
-       link with no offset - so lidar_link sits exactly where the beams
-       originate, and the device body hangs around it.
-
-       All the mount numbers below are MEASURED OFF THE MESH, not taken from
-       SICK's macro args. Those args (0.06 x 0.06 x 0.079 body, laser centre
-       0.05595 above the base plate) do NOT describe sick_tim_5xx.stl: the
-       actual mesh envelope about the laser centre is
-           x -0.04729 .. +0.02903   (0.0763 - the rear cable boss overhangs)
-           y -0.03070 .. +0.03007   (0.0608)
-           z -0.06296 .. +0.02290   (0.0859)
-       i.e. the base plate is 0.06296 below the laser centre, not 0.05595.
-       Standing the device on SICK's number sank the housing 7 mm INTO the top
-       plate, which is what this joint's z now corrects. -->
+  <!-- ============ 2D LIDAR (SLAM / Nav2) ============ -->
+    <!-- Modelled as a SICK TiM5xx (TiM571), a real 270 deg single-plane scanner.
+         Mesh vendored from sick_scan_xd into meshes/sensors/. -->
   <link name="lidar_link">
     <visual>
       <geometry><mesh filename="package://pickplace_arm_description/meshes/sensors/sick_tim_5xx.stl"/></geometry>
       <material name="arm_grey"/>
     </visual>
-    <!-- Collision is a PRIMITIVE, not the mesh, even though SICK's own URDF
-         reuses the mesh for both. A detailed triangle mesh is far more
-         expensive to collide than a box, and this housing never needs accurate
-         contact - it just has to exist. Using the mesh here measurably hurt:
-         the startup clock-jump count went from 0 to 1903 as the physics step
-         slowed. Box = the MEASURED mesh envelope above (0.0763 x 0.0608 x
-         0.0859), centred on that envelope's centre relative to the laser
-         centre. The previous box used SICK's declared 0.06 x 0.06 x 0.079
-         instead, which left its floor 7 mm above the real base plate - so the
-         collision model hovered while the visual stood on the plate. -->
+    <!-- Collision is a primitive, not the mesh: a triangle mesh is far more
+         expensive to collide and this housing never needs accurate contact. -->
     <collision>
       <origin xyz="-0.00913 0 -0.02003" rpy="0 0 0"/>
       <geometry><box size="0.0763 0.0608 0.0859"/></geometry>
@@ -294,33 +155,13 @@
   <joint name="lidar_joint" type="fixed">
     <parent link="top_plate_front_mount"/>
     <child link="lidar_link"/>
-    <!-- Stand the real device ON the plate, fully INBOARD of its front edge.
-         Two corrections, both against the measured mesh envelope above:
-
-         z = +0.06296 (not SICK's 0.05595). lidar_link IS the laser centre and
-         the mesh's base plate is 0.06296 below it, so this puts the housing's
-         floor on the plate's upper surface (0.25135 in base_link) to within
-         0.1 mm. The old value buried the bottom 7 mm of the housing in the
-         plate. Scan plane: 0.4467 m above the floor, up from 0.4396.
-
-         x = -0.038. top_plate_front_mount sits at top_plate_link x=0.44487 but
-         the plate's front EDGE is at 0.4462 - only 1.3 mm further forward -
-         while the mesh reaches 0.02903 ahead of the laser centre. Mounted with
-         no x offset, 27.7 mm of the scanner hung off the front of the plate in
-         mid-air. Pulling it back 38 mm puts its front face at 0.4359, i.e.
-         10.3 mm inboard of the edge, with the whole footprint on the plate.
-
-         Neither change costs anything downstream: warehouse walls span the
-         full height either way, the carried box still rides 0.17 m clear above
-         the scan plane, and the arm stays deep inside the excluded rear wedge
-         (see above). -->
-    <origin xyz="-0.038 0 0.06296" rpy="0 0 0"/>
+    <!-- Hung under the plate, inverted and wholly inboard. -->
+    <origin xyz="-0.03487 0 -0.06935" rpy="${PI} 0 0"/>
   </joint>
 
-  <!-- IMU: its yaw is fused with the wheel odometry (robot_localization EKF)
-       to stabilize heading, which a 4-wheel skid-steer's wheel-only odom
-       estimates poorly (lateral scrub during turns causes heading drift that
-       corrupts SLAM). Mounted inside the chassis, on its centreline. -->
+  <!-- IMU: its yaw is fused with the wheel odometry (robot_localization EKF) to
+       stabilize heading, which a skid-steer's wheel-only odom estimates poorly.
+       Mounted inside the chassis, on its centreline. -->
   <link name="imu_link">
     <inertial>
       <mass value="0.02"/>
@@ -334,51 +175,11 @@
     <origin xyz="0 0 0.12" rpy="0 0 0"/>
   </joint>
 
-  <!-- Front-facing RGB-D camera, BOLTED FLAT onto the Husky's front panel via
-       the A200's own front_bumper_mount frame (base_link 0.406, 0, 0.091).
-       Detects the box ahead while the base drives.
-
-       The panel it sits on, measured off base_link.dae: a flat vertical face
-       at x=0.4044 spanning z 0.043..0.114 (above and below that the shell
-       curves away). front_bumper_mount is 1.6 mm proud of it at z=0.091, i.e.
-       squarely in the middle of the flat region - so mounting with no z offset
-       puts the camera body at z 0.0765..0.1055, entirely on the panel. -->
-  <!-- Modelled as an Intel RealSense D455 (87 x 58 deg FOV), which matches the
-       90 deg / 8 m sensor configured for it and is the D400-series part
-       normally fitted to a mobile base. Mesh vendored from
-       realsense2_description into meshes/sensors/.
-
-       IT IS A D455 AND NOT A D435 FOR A RENDERING REASON, measured not assumed.
-       Gazebo (gz-sim 8.14, ogre2) IGNORES an SDF <material> on a mesh that
-       carries its own embedded materials, and d435.dae carries exactly one - a
-       lambert with diffuse 0.749 and no ambient/specular, which saturates to
-       plain WHITE under the sim's lighting. That is not a theory: rendering
-       d435.dae twice side by side, once bare and once with an SDF material
-       forced to pure RED, produced two identical white bars, while d405.stl
-       with a forced BLUE came out blue. An STL carries no material, so the
-       <material> below is the only thing describing it and Gazebo honours it.
-       d455.stl is the closest STL in the family - and at 2.5 MB against
-       d435.dae's 15 MB it is markedly cheaper to load and draw as well.
-
-       Offsets follow Intel's own _d455.urdf.xacro: the mesh is authored in
-       MILLIMETRES (hence scale 0.001) with its origin at the front plate, hung
-       off the link with rpy (pi/2, 0, pi/2) and x = zero_depth_to_glass +
-       glass_to_front = 0.00455 + 0.0001.
-
-       ONE DELIBERATE DEVIATION: Intel also shifts the mesh by -cam_depth_py
-       (-0.0475), because d455.stl's origin is the housing's lateral CENTRE and
-       that shift is what lands the real depth module on the link. Applying it
-       would hang a 124 mm bar almost entirely off one side of the robot's
-       centreline (y -0.1095..+0.0145). Since front_camera_link is a frame we
-       define, and the sim renders from wherever front_camera_optical_link is
-       put, nothing functional depends on reproducing the D455's internal
-       optical offset - so the shift is dropped and the housing is centred on
-       the chassis, the way one would actually bolt it on.
-
-       Mesh + origin + rpy therefore resolve to a body occupying, in this
-       link's frame, x -0.02135..+0.00465, y -0.062..+0.062, z -0.0145..+0.0145:
-       the back face is 21.35 mm BEHIND the link and the front glass 4.65 mm
-       ahead of it. Those are what the mount joint's x is set from. -->
+  <!-- Front-facing RGB-D camera, bolted flat onto the A200's own
+       front_bumper_mount frame (base_link 0.406, 0, 0.091). Detects the box
+       ahead while the base drives. -->
+    <!-- Modelled as an Intel RealSense D455 (87 x 58 deg FOV). Mesh vendored
+         from realsense2_description into meshes/sensors/. -->
   <link name="front_camera_link">
     <visual>
       <origin xyz="0.00465 0 0" rpy="${PI/2} 0 ${PI/2}"/>
@@ -389,10 +190,7 @@
       <material name="arm_grey"/>
     </visual>
     <!-- Box = the mesh envelope above (0.026 x 0.124 x 0.029), centred on that
-         envelope rather than on the link. Centring it on the link instead
-         would push its back face 8 mm behind the real housing, which now that
-         the camera is bedded against the panel would put phantom collision
-         geometry inside the chassis. -->
+         envelope rather than on the link. -->
     <collision>
       <origin xyz="-0.00835 0 0" rpy="0 0 0"/>
       <geometry><box size="0.026 0.124 0.029"/></geometry>
@@ -403,26 +201,8 @@
   <joint name="front_camera_joint" type="fixed">
     <parent link="front_bumper_mount"/>
     <child link="front_camera_link"/>
-    <!-- Zero rpy: the camera is rigidly aligned with base_link, so it always
-         points exactly along the chassis's own forward direction, with no
-         extra tilt to account for. THE CAMERA-FRAME DETECTION GATES DEPEND ON
-         THIS - they are axis-aligned boxes in camera coordinates whose z bounds
-         are read as world heights offset by the lens height, which only holds
-         while the camera frame's z is world-up. Do not add a tilt here.
-
-         x = +0.019 seats the housing ON the panel: the back face lands at
-         base_link 0.40365 against the panel's 0.4044, so it beds in by 0.75 mm
-         with no gap to show. It was +0.1027, which left the back face at
-         0.48795 - 83 mm of clear air in front of the chassis - and z was
-         +0.109, another 86 mm above the top of the flat panel, so the camera
-         hung unsupported in space.
-
-         Resolves to base_link (0.425, 0, 0.091) = FRONT_CAM_Z 0.22328 m above
-         the floor, down from 0.33228. pick_and_place.FRONT_CAM_Z and every
-         camera-frame gate z band were re-derived against this; anything else
-         expressed in base_link (COLUMN_STOP_X, GRIPPER_X, MAX_REACH_X ...) is
-         unaffected, since detections are transformed out of the camera frame
-         through TF before they are compared to those. -->
+    <!-- Zero rpy: the camera is rigidly aligned with base_link. The camera-frame
+         detection gates depend on this. -->
     <origin xyz="0.019 0 0" rpy="0 0 0"/>
   </joint>
 
@@ -433,30 +213,9 @@
     <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
   </joint>
 
-  <!-- ============ Wrist RGB-D camera (eye-in-hand, on the Franka Hand) ====
-       Mounted on fr3_hand, flat against the side of the hand body, and looking
-       ALONG THE APPROACH AXIS.
-
-       rpy="0 -pi/2 0" maps camera_link's +x onto fr3_hand's +z. That keeps
-       the invariant the mission code relies on -the camera looks exactly
-       where the gripper points, with no per-camera tilt to compensate for -
-       which previously came from camera_link being zero-rpy on gripper_base
-       (whose forward axis was +x). On the Franka Hand the approach axis is
-       +z (fingers close along +/-y, hand_tcp is at +0.1034 z), hence the
-       rotation.
-
-       Consequence is unchanged from before: with the gripper pointing
-       straight down the camera looks straight down too, so scanning for a box
-       or reading a tag needs the arm actually pitched to a scan pose. -->
-  <!-- Modelled as an Intel RealSense D405: the short-range part of the family,
-       built for exactly this eye-in-hand job (60 deg HFOV, useful from a few
-       mm out), which matches the 60 deg / 0.05-5 m sensor configured for it.
-       Mesh vendored from realsense2_description into meshes/sensors/.
-
-       Offsets copied from Intel's _d405.urdf.xacro, same convention as the
-       D435 above: mesh at (zero_depth_to_glass + glass_to_front, -cam_depth_py,
-       0) = (0.0038, -0.009, 0), rpy (pi/2, 0, pi/2). Unlike d435.dae, d405.stl
-       is authored in MILLIMETRES, so it needs the 0.001 scale Intel applies. -->
+  <!-- ============ Wrist RGB-D camera (eye-in-hand, on the Franka Hand) ============ -->
+    <!-- Modelled as an Intel RealSense D405, the short-range part of the family
+         (60 deg HFOV). Mesh vendored from realsense2_description. -->
   <link name="camera_link">
     <visual>
       <origin xyz="0.0038 -0.009 0" rpy="${PI/2} 0 ${PI/2}"/>
@@ -476,33 +235,7 @@
   <joint name="camera_joint" type="fixed">
     <parent link="fr3_hand"/>
     <child link="camera_link"/>
-    <!-- x = 0.043 seats the D405 against the hand with NO GAP ANYWHERE. It was
-         0.068, chosen to clear a 0.04 m collision CAPSULE about the hand axis -
-         but that capsule only exists when with_sc=true, and franka_robot is
-         called above with with_sc="false", so nothing was ever there to clear.
-
-         The hand's side is not a flat face, it is a TAPER, measured by
-         cross-sectioning hand.stl at the camera's own y band:
-             hand z 0.021 -> x 0.0280      hand z 0.044 -> x 0.0223
-         (widest at 0.0315 near z=0.005, narrowing all the way up). The camera
-         body spans hand z 0.0208..0.0438, so the surface it has to meet slides
-         inward by 5.7 mm from its bottom edge to its top.
-
-         With the mesh reaching 0.021 back from camera_link, x=0.068 left the
-         back face at hand x=0.047 - 19 mm of open air. An intermediate 0.048
-         put it at 0.027, which touched at the BOTTOM edge but still left ~4 mm
-         showing at the top, where the taper had fallen away: the gap that was
-         still visible. Seating it against the NARROWEST point of the contact
-         band instead (0.0223 at the top edge) is what closes it: 0.043 puts the
-         back face at 0.022, so the housing meets or bites into the hand over
-         the whole band - 0.3 mm proud at the top, 6 mm buried at the bottom.
-         The buried part is inside a solid link and never shows.
-
-         This offset is perpendicular to the view direction and does not touch
-         the approach-axis alignment; detections transform through TF
-         regardless. camera_link vs fr3_hand is already
-         disable_collisions="Adjacent" in the SRDF, so the contact costs
-         nothing in planning. -->
+    <!-- x = 0.043 seats the D405 against the hand with no gap. -->
     <origin xyz="0.043 0 0.04" rpy="0 -1.5708 0"/>
   </joint>
 
