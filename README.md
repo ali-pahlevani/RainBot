@@ -18,6 +18,17 @@ parks. The same mobility that lets it reach the table also lets it carry each
 cube anywhere else in the mapped space; this mission is one example of the
 class of mobile pick-and-place tasks the platform is built for.
 
+**Version 2 adds a three-robot fleet.** The same robot, three of them, in the
+**AWS RoboMaker hospital**: each collects a sample rack from a different ward,
+carries it across the building to a shared delivery table, places it in its own
+slot, and parks — with a central task manager assigning the errands and keeping
+the three of them out of each other's way. See
+[Version 2: the hospital fleet](#version-2-the-hospital-fleet).
+
+![The three-robot fleet in reception](docs/images/v2/robot_fleet.png)
+
+*The fleet in the reception lobby, before navigation has started.*
+
 Everything RainBot needs is in this repository. There are no external
 description packages to clone.
 
@@ -29,6 +40,7 @@ description packages to clone.
 - [Build](#build)
 - [Run the mission](#run-the-mission)
 - [What the mission does](#what-the-mission-does)
+- [Version 2: the hospital fleet](#version-2-the-hospital-fleet)
 - [Repository layout](#repository-layout)
 - [The robot](#the-robot)
 - [Controllers](#controllers)
@@ -166,6 +178,9 @@ about **6 minutes** of wall clock.
 > [Troubleshooting](#troubleshooting): this is the single most common cause of
 > strange failures in this project.
 
+To run the three-robot fleet instead, see
+[Version 2: the hospital fleet](#version-2-the-hospital-fleet).
+
 ---
 
 ## What the mission does
@@ -217,6 +232,164 @@ Typical verified output:
 
 ---
 
+## Version 2: the hospital fleet
+
+Version 1 is one robot, one warehouse, three cubes. **Version 2 keeps all of
+that and adds a three-robot fleet** working a building instead of a room: the
+**AWS RoboMaker hospital**, one floor, 183 model instances over roughly
+**25 × 51 m** of real interior walls, with a floor and a ceiling.
+
+The world is not empty, either. Seventeen `<actor>` skeletons populate it:
+people standing about the wards and lobby, four walking down each of the east
+and west corridors, and two wheelchairs being pushed along the aisles. Actors
+carry no collision geometry, but the LIDAR is a rendering sensor and *does* see
+them, so they are real obstacles to the costmaps.
+
+![The hospital world in Gazebo](docs/images/v2/hospital_overall_1.png)
+
+*The AWS hospital floor in Gazebo, with `hospital_ceiling` unticked to see
+inside.*
+
+![The hospital world, second view](docs/images/v2/hospital_overall_2.png)
+
+*The same floor from another angle: the reception lobby and both wings.*
+
+### Run it
+
+```bash
+cd ~/RainBot
+export GZ_VERSION=harmonic
+source install/setup.bash
+ros2 launch pickplace_arm_bringup hospital_mission.launch.py
+```
+
+| Argument | Default | Effect |
+| --- | --- | --- |
+| `use_rviz` | `true` | Start RViz with the generated fleet layout (declared by the included fleet launch). |
+| `depart_stagger` | `20.0` | Seconds between one robot leaving reception and the next being dispatched. |
+
+Three launch files share the same world:
+
+| Launch | What it runs |
+| --- | --- |
+| `hospital_fleet.launch.py` | The three robots, their Nav2 stacks, AMCL and RViz — no props, no errands. |
+| `hospital_mission.launch.py` | The fleet **plus** four tables, three racks and the task manager: the whole job. |
+| `mission_rackPlace.launch.py` | The **single-robot** run of version 1, moved into the hospital and carrying racks instead of cubes. |
+
+### The job
+
+The three robots spawn in a 2.0 m triangle in the reception lobby, centred on
+map (0.00, 8.75) and all facing the desk. Each is given one errand at dispatch:
+
+| Robot | Rack | Collection table | Ward |
+| --- | --- | --- | --- |
+| `r1` | red | (−8.90, −5.00) | west wing, north end |
+| `r2` | green | (8.50, −19.50) | east wing, south |
+| `r3` | blue | (−7.50, −26.50) | far south hall |
+
+Every robot then runs the same errand, which is 29–40 m of driving:
+
+1. **Collect** — navigate to the collection table on a tightened yaw tolerance,
+   confirm with the camera that the rack really is in view, and claw-pick it
+   off the table top.
+2. **Carry** — back off and drive to the shared delivery table at
+   (−3.50, 10.00).
+3. **Hold** — stop on a **3 m ring** around that table, on a bearing reserved
+   for this robot, and wait its turn.
+4. **Claim** — ask the task manager for a delivery slot.
+5. **Deliver** — drive to the standoff, *measure* the table's front face with
+   the lidar rather than trusting Nav2, square up on it, and lower the rack
+   into its slot. The three slots are 0.38 m apart.
+6. **Park** — take a reserved vertex on a second triangle at (1.00, 14.25) and
+   report the outcome.
+
+Every step that can fail has a recovery. A rack that is not in view triggers a
+bounded sweep; a refused Nav2 goal is treated as a localization problem and
+answered with a rotate-in-place re-localize; and a placement that never gets a
+usable slot reading falls back to setting the rack down on the measured table
+face rather than carrying it away.
+
+![Waiting on the holding ring](docs/images/v2/fleet_before_place.png)
+
+*The standby point: robots hold on the ring around the delivery table, each on
+its own reserved bearing, until the task manager grants them the table.*
+
+### Keeping three robots out of each other's way
+
+Three robots that leave a 3.46 m triangle at the same instant, all heading for
+the same lobby exit, drive into each other. Coordination therefore lives in the
+one node that can see all three at once — `task_manager.py` — and takes three
+forms:
+
+| Rule | What it does |
+| --- | --- |
+| **Departure stagger** | `depart_stagger` seconds between departures, so the reception triangle empties one robot at a time. |
+| **Delivery queue** | One reserved waiting *bearing* per robot on the 3 m holding ring, so all three make the trip as soon as they are carrying and wait at the table rather than back at their own benches. |
+| **Delivery lock** | Only one robot works at the delivery table at a time: its standoff, its creep-in and its arm placement all happen inside a space barely wider than one robot. |
+
+Neither rule costs much here — the errands are long enough that the robots are
+naturally spread out for almost the whole run, and the locks only bite at the
+two moments they are all in the same place.
+
+None of it replaces the robots' own obstacle avoidance: each still sees the
+others on its LIDAR and plans around them in its local costmap, which is what
+handles incidental encounters in a corridor.
+
+`task_manager.py` also draws the whole job in RViz — collection tables coloured
+by the rack they carry, the standoffs, the delivery slots and their owners, and
+the parking triangle — and publishes a status line for each robot.
+
+![The fleet in RViz](docs/images/v2/fleet_in_rviz.png)
+
+*The generated fleet RViz layout while the three robots are navigating to their
+collection tables, with the task manager's markers on top.*
+
+### One description, three robots
+
+Running three of the same robot means every frame and every topic has to be
+namespaced, and several things in the stack do not namespace themselves:
+
+| Module | What it solves |
+| --- | --- |
+| `ns_params.py` | Rewrites a single-robot Nav2/AMCL parameter file for one namespace — frames first, then topics — so one YAML serves all three. |
+| `nav_bringup.py` | Brings one robot's Nav2 stack up and **retries** when bring-up stalls, instead of leaving a half-active stack behind. |
+| `map_pump.py` | Re-publishes the shared `/map` while the fleet comes up, so a robot whose subscription missed the single latched sample still gets one. |
+| `fleet_rviz.py` | Generates one RViz config for the whole fleet from the fleet's own robot list, one collapsible group per robot. |
+| `rack_release.py` | Breaks the startup welds between every gripper and every rack, so nothing begins the run already attached. |
+| `fastdds_shm.xml` | A shared-memory DDS profile: with three robots the loopback UDP stack becomes the bottleneck. |
+
+The robot description takes a `robot_ns` argument that is **empty by default**,
+so the single-robot launches produce exactly the description they did before.
+
+### The map is generated, not driven
+
+The version 1 warehouse map was built by driving the robot around with
+`slam_toolbox`. The hospital map is **generated from the world file itself** by
+`aws_hospital_map.py`, which slices `aws_hospital.sdf`'s own collision geometry
+at the height the LIDAR scans and stamps each prop's whole footprint:
+
+```bash
+ros2 run pickplace_arm_bringup aws_hospital_map
+```
+
+This matters more than it saves. Because the map comes from the world rather
+than from a SLAM run, there is **no scan-matching drift between the two**: a
+Gazebo coordinate *is* a map coordinate. That is what lets the layout modules
+write literal world coordinates, and lets AMCL seed itself straight from the
+spawn pose.
+
+The racks are deliberately left out of the map — an obstacle where a prop no
+longer is, is worse than one that was never drawn — which is why AMCL runs
+`likelihood_field_prob` with beam skipping here, so beams returned off unmapped
+racks and off the other robots are dropped rather than counted as evidence
+against the correct pose.
+
+![The job complete](docs/images/v2/fleet_final.png)
+
+*Every rack placed: the robots on their parking vertices with the job done.*
+
+---
+
 ## Repository layout
 
 ```
@@ -236,8 +409,8 @@ RainBot/
     │   │   ├── arm_controllers.yaml    # ros2_control controller definitions
     │   │   ├── ekf.yaml                # robot_localization wheel+IMU fusion
     │   │   └── franka/                 # FR3 joint limits / inertials / kinematics
-    │   ├── worlds/                     # tugbot_warehouse.sdf
-    │   ├── models/                     # table, cubes, columns
+    │   ├── worlds/                     # tugbot_warehouse.sdf, aws_hospital.sdf (v2)
+    │   ├── models/                     # table, cubes, columns, rack_table, racks (v2)
     │   └── launch/
     │       ├── gazebo.launch.py        # world + robot + controllers + bridge + EKF
     │       └── display.launch.py       # model-only view in RViz
@@ -248,13 +421,30 @@ RainBot/
     │   │   ├── search_and_pick.py      # + vision-only search
     │   │   ├── nav_and_pick.py         # + Nav2 goals and coverage search
     │   │   ├── mission.py              # + map-based patrol / deliver / park
-    │   │   ├── mission_2.py            # + the colour-sorting mission (Mission2Tugbot)
+    │   │   ├── mission_2.py            # + colour sorting (Mission2Tugbot / Mission2Hospital)
+    │   │   ├── mission_delivery.py     # v2: one robot's collect -> deliver -> park errand
+    │   │   ├── task_manager.py         # v2: dispatch, slot/parking allocation, RViz markers
+    │   │   ├── fleet_layout.py         # v2: where the fleet spawns and where it parks
+    │   │   ├── rack_table_layout.py    # v2: the rack tables, and the racks standing on them
+    │   │   ├── hospital_pickplace_layout.py  # v2: layout for the single-robot hospital run
+    │   │   ├── aws_hospital_map.py     # v2: generate the occupancy map from the world SDF
+    │   │   ├── nav_bringup.py          # v2: bring one robot's Nav2 up, with retries
+    │   │   ├── ns_params.py            # v2: rewrite Nav2/AMCL params for one namespace
+    │   │   ├── map_pump.py             # v2: re-publish /map while the fleet comes up
+    │   │   ├── fleet_rviz.py           # v2: generate one RViz config for the fleet
+    │   │   ├── rack_release.py         # v2: break the startup gripper/rack welds
     │   │   ├── wait_for.py             # startup readiness gate
     │   │   └── teleop_key.py           # manual driving, for map building
-    │   ├── config/                     # Nav2, AMCL, SLAM, RViz, DDS profile
-    │   ├── maps/                       # tugbot_warehouse occupancy map
+    │   ├── config/                     # Nav2, AMCL, SLAM, RViz, DDS profiles
+    │   │   ├── nav2_params.yaml              # shared Nav2 tuning
+    │   │   ├── amcl_hospital.yaml            # v2: AMCL against the generated hospital map
+    │   │   └── fastdds_shm.xml               # v2: shared-memory DDS profile for the fleet
+    │   ├── maps/                       # tugbot_warehouse + aws_hospital (v2) occupancy maps
     │   └── launch/
-    │       ├── mission_pickPlace.launch.py   # THE mission
+    │       ├── mission_pickPlace.launch.py   # THE mission (v1)
+    │       ├── hospital_fleet.launch.py      # v2: three robots + Nav2 + AMCL + RViz
+    │       ├── hospital_mission.launch.py    # v2: THE fleet mission (props + task manager)
+    │       ├── mission_rackPlace.launch.py   # v2: single robot, hospital, racks
     │       ├── nav2.launch.py                # Nav2 servers (included by the mission)
     │       ├── mapping.launch.py             # drive-and-map workflow
     │       ├── slam.launch.py                # slam_toolbox only
@@ -271,12 +461,19 @@ RainBot/
 runs is the end of an inheritance chain:
 
 ```
-PickAndPlace → SearchAndPick → NavAndPick → Mission → Mission2 → Mission2Tugbot
+PickAndPlace → SearchAndPick → NavAndPick → Mission → Mission2 ─┬─ Mission2Tugbot
+                                                                └─ Mission2Hospital → DeliveryMission
 ```
 
 So `pick_and_place.py`, `search_and_pick.py`, `nav_and_pick.py`, `mission.py`
 and `mission_2.py` are all still imported at runtime. They are **not** dead code;
 they simply no longer have console entry points of their own.
+
+Version 2 extends the same chain rather than forking it: `Mission2Hospital` is
+the version 1 colour-sorting run relocated to the hospital, and
+`DeliveryMission` (`mission_delivery.py`) adds the collect/deliver/park errand
+and the conversation with the task manager on top of it. Every arm primitive,
+every detection gate and every Nav2 helper is inherited unchanged.
 
 ---
 
@@ -721,7 +918,10 @@ colcon build --packages-select <pkg> --symlink-install
 - [x] Full colour-sorting mission with verified placement
 - [x] Readiness-gated startup (13–18 s to mission start)
 - [x] Self-contained workspace (no external description packages)
-- [ ] Multi-robot / fleet operation
+- [x] Multi-robot / fleet operation (three robots, central task manager)
+- [x] Namespaced Nav2/AMCL bring-up from one shared parameter file
+- [x] Occupancy map generated from the world file instead of a SLAM run
+- [x] Large populated environment (AWS hospital, moving actors)
 - [ ] Real-hardware bring-up
 - [ ] General-purpose mobile pick-and-place beyond the colour-sorting demo
 - [ ] ROS 2 Jazzy support
