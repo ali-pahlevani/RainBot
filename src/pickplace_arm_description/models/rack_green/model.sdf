@@ -1,0 +1,184 @@
+<?xml version="1.0" ?>
+<!-- Blood sample rack, GREEN channel: six capped tubes in a carrier with an
+     overhead grip block. These are the payload of the pick-and-place run, and
+     they stand in for the coloured boxes one for one - same three colours,
+     same table, same columns, same order.
+
+     THE GRIP BLOCK IS WHAT MAKES THE SWAP FREE. It is a 0.06 m cube, exactly
+     the size of the box it replaces, so the Franka Hand closes to the same
+     finger gap and grab_below's grasp verification threshold still holds; it is
+     a cube rather than a flat tab so the grasp works from any approach yaw; and
+     it is saturated GREEN, so the front camera's existing HSV detector finds
+     this rack with no new perception code.
+
+     WHAT IS *NOT* FREE IS THAT THE GRIP IS 0.17 m ABOVE THE TRAY. A box is
+     grasped through its middle, so the fingertips sit half a box above whatever
+     it stands on; this rack is grasped near its top, so they sit 0.170 m above
+     it. Every height the mission computes from "the top of the thing I am
+     standing on" has to use that number instead - see PAYLOAD_GRIP_HEIGHT in
+     mission_2.py, and carry_height() in pick_and_place.py for why the carry
+     pose has to rise with it (at the box's carry height this rack's tray rides
+     in the LIDAR's scan plane and the robot sees its own payload as a wall).
+
+     The model origin is the BOTTOM of the tray, not its centre, so it spawns at
+     exactly the height of whatever it stands on: on the 0.30 m table top, it is
+     spawned at z = 0.30.
+
+     Height budget, from the tray's underside:
+       0.000 - 0.025  tray floor
+       0.025 - 0.095  tubes
+       0.095 - 0.107  tube caps
+       0.025 - 0.125  gantry posts (clear of the caps)
+       0.125 - 0.140  gantry crossbar
+       0.140 - 0.200  grip block   (centre 0.170 = PAYLOAD_GRIP_HEIGHT)
+
+     THE TUBES ARE AMBER ON PURPOSE, NOT RED. They used to be dark red, which is
+     right for a blood tube and wrong for a rack that has to be told apart from
+     two others by colour alone: dark red renders at OpenCV hue ~2 with high
+     saturation, i.e. squarely inside COLOR_HSV['red'], so a 'red' search would
+     lock onto the tubes of the GREEN and BLUE racks as readily as onto the red
+     one's grip block. Amber sits at hue ~22, the midpoint of the empty band
+     between red (0..10) and green (35..85), so it belongs to no channel at all
+     and leaves the grip block as the only thing that carries a colour. The
+     lavender caps are outside every band too, on both hue and saturation.
+
+     Collision is deliberately coarser than the visuals: the tray, the gantry
+     and the grip block have collision geometry, the tubes do not. The tubes sit
+     inside the rack and can never be the first thing to touch anything, so
+     giving them contact geometry would only add contact pairs to the solver.
+
+     Friction is 0.7 on the tray (plastic on a painted table), NOT the 4.0 the
+     coloured boxes use. Those needed an unphysical value because friction was
+     all that held them; this rack is held by a DetachableJoint while carried,
+     so mu here only governs whether it slides or tips when it is standing on
+     something. The GRIP BLOCK keeps 4.0, because the jaws close on it and there
+     is a window before the weld where friction is all there is. -->
+<sdf version="1.9">
+  <model name="rack_green">
+    <link name="link">
+
+      <inertial>
+        <!-- Mass sits low: tray plus filled tubes, with only the light gantry
+             above. Inertia is the box approximation over the full
+             0.16 x 0.12 x 0.20 envelope, which over-estimates slightly and so
+             errs towards a stable, not a twitchy, payload. -->
+        <pose>0 0 0.06 0 0 0</pose>
+        <mass>0.30</mass>
+        <inertia>
+          <ixx>1.36e-3</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>1.64e-3</iyy><iyz>0</iyz>
+          <izz>1.00e-3</izz>
+        </inertia>
+      </inertial>
+
+      <!-- tray -->
+      <collision name="tray_collision">
+        <pose>0 0 0.0125 0 0 0</pose>
+        <geometry><box><size>0.16 0.12 0.025</size></box></geometry>
+        <surface>
+          <friction><ode><mu>0.7</mu><mu2>0.7</mu2></ode></friction>
+          <contact><ode><kp>1e6</kp><kd>1.0</kd></ode></contact>
+        </surface>
+      </collision>
+      <visual name="tray_visual">
+        <pose>0 0 0.0125 0 0 0</pose>
+        <geometry><box><size>0.16 0.12 0.025</size></box></geometry>
+        <material>
+          <ambient>0.10 0.12 0.16 1</ambient>
+          <diffuse>0.16 0.19 0.24 1</diffuse>
+          <specular>0.2 0.2 0.2 1</specular>
+        </material>
+      </visual>
+
+      <!-- six tubes, 3 along x by 2 along y (visual only) -->
+      <visual name="tube_0"><pose>-0.03  0.03 0.060 0 0 0</pose>
+        <geometry><cylinder><radius>0.0065</radius><length>0.070</length></cylinder></geometry>
+        <material><ambient>0.55 0.46 0.22 1</ambient><diffuse>0.85 0.72 0.35 1</diffuse></material></visual>
+      <visual name="tube_1"><pose> 0.00  0.03 0.060 0 0 0</pose>
+        <geometry><cylinder><radius>0.0065</radius><length>0.070</length></cylinder></geometry>
+        <material><ambient>0.55 0.46 0.22 1</ambient><diffuse>0.85 0.72 0.35 1</diffuse></material></visual>
+      <visual name="tube_2"><pose> 0.03  0.03 0.060 0 0 0</pose>
+        <geometry><cylinder><radius>0.0065</radius><length>0.070</length></cylinder></geometry>
+        <material><ambient>0.55 0.46 0.22 1</ambient><diffuse>0.85 0.72 0.35 1</diffuse></material></visual>
+      <visual name="tube_3"><pose>-0.03 -0.03 0.060 0 0 0</pose>
+        <geometry><cylinder><radius>0.0065</radius><length>0.070</length></cylinder></geometry>
+        <material><ambient>0.55 0.46 0.22 1</ambient><diffuse>0.85 0.72 0.35 1</diffuse></material></visual>
+      <visual name="tube_4"><pose> 0.00 -0.03 0.060 0 0 0</pose>
+        <geometry><cylinder><radius>0.0065</radius><length>0.070</length></cylinder></geometry>
+        <material><ambient>0.55 0.46 0.22 1</ambient><diffuse>0.85 0.72 0.35 1</diffuse></material></visual>
+      <visual name="tube_5"><pose> 0.03 -0.03 0.060 0 0 0</pose>
+        <geometry><cylinder><radius>0.0065</radius><length>0.070</length></cylinder></geometry>
+        <material><ambient>0.55 0.46 0.22 1</ambient><diffuse>0.85 0.72 0.35 1</diffuse></material></visual>
+
+      <!-- caps (lavender, i.e. EDTA tubes) -->
+      <visual name="cap_0"><pose>-0.03  0.03 0.101 0 0 0</pose>
+        <geometry><cylinder><radius>0.0075</radius><length>0.012</length></cylinder></geometry>
+        <material><ambient>0.55 0.45 0.70 1</ambient><diffuse>0.72 0.62 0.88 1</diffuse></material></visual>
+      <visual name="cap_1"><pose> 0.00  0.03 0.101 0 0 0</pose>
+        <geometry><cylinder><radius>0.0075</radius><length>0.012</length></cylinder></geometry>
+        <material><ambient>0.55 0.45 0.70 1</ambient><diffuse>0.72 0.62 0.88 1</diffuse></material></visual>
+      <visual name="cap_2"><pose> 0.03  0.03 0.101 0 0 0</pose>
+        <geometry><cylinder><radius>0.0075</radius><length>0.012</length></cylinder></geometry>
+        <material><ambient>0.55 0.45 0.70 1</ambient><diffuse>0.72 0.62 0.88 1</diffuse></material></visual>
+      <visual name="cap_3"><pose>-0.03 -0.03 0.101 0 0 0</pose>
+        <geometry><cylinder><radius>0.0075</radius><length>0.012</length></cylinder></geometry>
+        <material><ambient>0.55 0.45 0.70 1</ambient><diffuse>0.72 0.62 0.88 1</diffuse></material></visual>
+      <visual name="cap_4"><pose> 0.00 -0.03 0.101 0 0 0</pose>
+        <geometry><cylinder><radius>0.0075</radius><length>0.012</length></cylinder></geometry>
+        <material><ambient>0.55 0.45 0.70 1</ambient><diffuse>0.72 0.62 0.88 1</diffuse></material></visual>
+      <visual name="cap_5"><pose> 0.03 -0.03 0.101 0 0 0</pose>
+        <geometry><cylinder><radius>0.0075</radius><length>0.012</length></cylinder></geometry>
+        <material><ambient>0.55 0.45 0.70 1</ambient><diffuse>0.72 0.62 0.88 1</diffuse></material></visual>
+
+      <!-- gantry: two posts either side of the tubes, plus a crossbar -->
+      <collision name="post_left_collision">
+        <pose>-0.055 0 0.075 0 0 0</pose>
+        <geometry><box><size>0.02 0.02 0.10</size></box></geometry>
+      </collision>
+      <visual name="post_left_visual">
+        <pose>-0.055 0 0.075 0 0 0</pose>
+        <geometry><box><size>0.02 0.02 0.10</size></box></geometry>
+        <material><ambient>0.20 0.22 0.26 1</ambient><diffuse>0.30 0.33 0.38 1</diffuse></material>
+      </visual>
+      <collision name="post_right_collision">
+        <pose>0.055 0 0.075 0 0 0</pose>
+        <geometry><box><size>0.02 0.02 0.10</size></box></geometry>
+      </collision>
+      <visual name="post_right_visual">
+        <pose>0.055 0 0.075 0 0 0</pose>
+        <geometry><box><size>0.02 0.02 0.10</size></box></geometry>
+        <material><ambient>0.20 0.22 0.26 1</ambient><diffuse>0.30 0.33 0.38 1</diffuse></material>
+      </visual>
+      <collision name="crossbar_collision">
+        <pose>0 0 0.1325 0 0 0</pose>
+        <geometry><box><size>0.13 0.02 0.015</size></box></geometry>
+      </collision>
+      <visual name="crossbar_visual">
+        <pose>0 0 0.1325 0 0 0</pose>
+        <geometry><box><size>0.13 0.02 0.015</size></box></geometry>
+        <material><ambient>0.20 0.22 0.26 1</ambient><diffuse>0.30 0.33 0.38 1</diffuse></material>
+      </visual>
+
+      <!-- grip block: what the Franka Hand actually closes on. Same 0.06 cube,
+           same saturated colour and same mu as the box it replaces. -->
+      <collision name="grip_collision">
+        <pose>0 0 0.170 0 0 0</pose>
+        <geometry><box><size>0.06 0.06 0.06</size></box></geometry>
+        <surface>
+          <friction><ode><mu>4.0</mu><mu2>4.0</mu2></ode></friction>
+          <contact><ode><kp>1e6</kp><kd>1.0</kd></ode></contact>
+        </surface>
+      </collision>
+      <visual name="grip_visual">
+        <pose>0 0 0.170 0 0 0</pose>
+        <geometry><box><size>0.06 0.06 0.06</size></box></geometry>
+        <material>
+          <ambient>0.05 0.7 0.05 1</ambient>
+          <diffuse>0.05 0.7 0.05 1</diffuse>
+          <specular>0.2 0.2 0.2 1</specular>
+        </material>
+      </visual>
+
+    </link>
+  </model>
+</sdf>

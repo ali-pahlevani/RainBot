@@ -1,0 +1,70 @@
+<?xml version="1.0" ?>
+<!-- Framed "quiet please" poster, for hanging flat on a wall.
+
+     MOUNTING CONVENTION: the origin sits ON the wall surface and the print
+     faces local +X, so an instance needs no offset of its own - give the
+     include the wall plane's own coordinate and yaw it to match the wall
+     normal (yaw 0 faces +x, 1.5708 faces +y, 3.1416 faces -x, -1.5708 faces
+     -y). Everything from the backplate forward sticks out into the room; only
+     the backplate's rear 5 mm is buried, which keeps its back face out of the
+     wall's own plane and stops the two z-fighting.
+
+     The print is a textured box rather than a mesh, the same trick
+     apriltag_column_1 uses - a wall picture is a flat rectangle seen from one
+     side, so the UVs a mesh would add buy nothing here.
+
+     0.60 x 0.90 m of print matches no_talk.png's 526x791 portrait aspect
+     (0.665) to within a percent, so the image is not stretched. The rails lap
+     2 cm over each edge, which crops it the way a real mat would. -->
+<sdf version="1.9">
+  <model name="no_talk_poster">
+    <static>true</static>
+    <link name="link">
+
+      <!-- One box for the whole frame: this hangs at 1.6 m on a wall that is
+           already solid to the LIDAR, so per-rail collision would only cost
+           broadphase pairs for a surface nothing can reach. -->
+      <collision name="frame_col">
+        <pose>0.021 0 0 0 0 0</pose>
+        <geometry><box><size>0.052 0.68 0.98</size></box></geometry>
+      </collision>
+
+      <visual name="back_plate">
+        <pose>0.005 0 0 0 0 0</pose>
+        <geometry><box><size>0.020 0.68 0.98</size></box></geometry>
+        <material><ambient>0.06 0.05 0.04 1</ambient><diffuse>0.12 0.09 0.07 1</diffuse><specular>0.05 0.05 0.05 1</specular></material>
+      </visual>
+
+      <visual name="print">
+        <pose>0.021 0 0 0 0 0</pose>
+        <geometry><box><size>0.012 0.60 0.90</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>no_talk.png</albedo_map><metalness>0</metalness><roughness>0.9</roughness></metal></pbr>
+        </material>
+      </visual>
+
+      <!-- Dark wood rails, standing 1 cm proud of the print. -->
+      <visual name="rail_top">
+        <pose>0.026 0 0.46 0 0 0</pose>
+        <geometry><box><size>0.022 0.68 0.060</size></box></geometry>
+        <material><ambient>0.10 0.06 0.03 1</ambient><diffuse>0.20 0.12 0.06 1</diffuse><specular>0.15 0.12 0.10 1</specular></material>
+      </visual>
+      <visual name="rail_bottom">
+        <pose>0.026 0 -0.46 0 0 0</pose>
+        <geometry><box><size>0.022 0.68 0.060</size></box></geometry>
+        <material><ambient>0.10 0.06 0.03 1</ambient><diffuse>0.20 0.12 0.06 1</diffuse><specular>0.15 0.12 0.10 1</specular></material>
+      </visual>
+      <visual name="rail_left">
+        <pose>0.026 0.31 0 0 0 0</pose>
+        <geometry><box><size>0.022 0.060 0.98</size></box></geometry>
+        <material><ambient>0.10 0.06 0.03 1</ambient><diffuse>0.20 0.12 0.06 1</diffuse><specular>0.15 0.12 0.10 1</specular></material>
+      </visual>
+      <visual name="rail_right">
+        <pose>0.026 -0.31 0 0 0 0</pose>
+        <geometry><box><size>0.022 0.060 0.98</size></box></geometry>
+        <material><ambient>0.10 0.06 0.03 1</ambient><diffuse>0.20 0.12 0.06 1</diffuse><specular>0.15 0.12 0.10 1</specular></material>
+      </visual>
+
+    </link>
+  </model>
+</sdf>

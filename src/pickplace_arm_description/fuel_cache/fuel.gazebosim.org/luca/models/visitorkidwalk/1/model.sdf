@@ -1,0 +1,14 @@
+<sdf version="1.6">
+    <actor name="actor">
+        <skin>
+            <filename>https://fuel.gazebosim.org/1.0/luca/models/visitorkidwalk/1/files/meshes/VisitorKidWalk.dae</filename>
+            <scale>1.0</scale>
+        </skin>
+        <pose>0 0 0 0 0 0</pose>
+        <animation name="walk">
+            <filename>https://fuel.gazebosim.org/1.0/luca/models/visitorkidwalk/1/files/meshes/VisitorKidWalk.dae</filename>
+            <scale>1.000000</scale>
+            <interpolate_x>true</interpolate_x>
+        </animation>
+    </actor>
+</sdf>
